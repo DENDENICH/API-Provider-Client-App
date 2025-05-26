@@ -1,6 +1,9 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { authService, organizersService } from "@/lib/api-services"
+import { apiClient } from "@/lib/api-client"
+import type { UserLoginRequest, UserRegisterRequest, OrganizerRegisterRequest } from "@/lib/api-types"
 
 type UserRole = "company" | "supplier" | "employee" | null
 
@@ -19,9 +22,10 @@ interface AuthContextType {
   role: UserRole
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
+  register: (userData: UserRegisterRequest) => Promise<string | null>
+  registerOrganization: (orgData: OrganizerRegisterRequest) => Promise<void>
   logout: () => void
   setUserRole: (role: UserRole) => void
-  registerWithInvite: (userData: any, inviteCode: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -30,12 +34,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Имитация загрузки пользователя
+  // Проверка токена при загрузке приложения
   useEffect(() => {
-    // В реальном приложении здесь будет проверка сессии/токена
+    const token = localStorage.getItem("access_token")
     const storedUser = localStorage.getItem("user")
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
+
+    if (token && storedUser) {
+      try {
+        const userData = JSON.parse(storedUser)
+        setUser(userData)
+        apiClient.setToken(token)
+      } catch (error) {
+        console.error("Ошибка при восстановлении пользователя:", error)
+        localStorage.removeItem("access_token")
+        localStorage.removeItem("user")
+      }
     }
     setIsLoading(false)
   }, [])
@@ -43,13 +56,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     setIsLoading(true)
     try {
-      // Имитация запроса к API
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const loginData: UserLoginRequest = { email, password }
+      const response = await authService.login(loginData)
 
-      // Для демонстрации создаем пользователя с ролью на основе email
-      const role = email.includes("supplier") ? "supplier" : "company"
-      const newUser = {
-        id: "user-1",
+      // Сохраняем токен
+      apiClient.setToken(response.access_token)
+
+      // Определяем роль пользователя на основе next_route
+      const role: UserRole = response.next_route === "/" ? "company" : null
+
+      // Создаем объект пользователя
+      const newUser: User = {
+        id: "user-1", // В реальном приложении это будет приходить с сервера
         name: email.split("@")[0],
         email,
         role,
@@ -57,6 +75,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUser(newUser)
       localStorage.setItem("user", JSON.stringify(newUser))
+
+      // Если нужна регистрация организации, перенаправляем
+      if (response.next_route === "organizers/register") {
+        throw new Error("NEED_ORG_REGISTRATION")
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const register = async (userData: UserRegisterRequest): Promise<string | null> => {
+    setIsLoading(true)
+    try {
+      const response = await authService.register(userData)
+
+      // Сохраняем токен
+      apiClient.setToken(response.access_token)
+
+      // Если нужна регистрация организации, возвращаем соответствующий маршрут
+      if (response.next_route === "organizers/register") {
+        return "organizers/register"
+      }
+
+      // Создаем объект пользователя
+      const newUser: User = {
+        id: "user-1",
+        name: userData.name,
+        email: userData.email,
+        role: userData.user_type === "organizer" ? "company" : "employee",
+      }
+
+      setUser(newUser)
+      localStorage.setItem("user", JSON.stringify(newUser))
+
+      return null // Успешная регистрация без дополнительных шагов
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const registerOrganization = async (orgData: OrganizerRegisterRequest) => {
+    setIsLoading(true)
+    try {
+      await organizersService.register(orgData)
+
+      // Обновляем роль пользователя
+      if (user) {
+        const updatedUser = { ...user, role: orgData.role as UserRole }
+        setUser(updatedUser)
+        localStorage.setItem("user", JSON.stringify(updatedUser))
+      }
     } finally {
       setIsLoading(false)
     }
@@ -64,6 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null)
+    apiClient.clearToken()
     localStorage.removeItem("user")
   }
 
@@ -75,45 +145,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // Новая функция для регистрации по коду приглашения
-  const registerWithInvite = async (userData: any, inviteCode: string) => {
-    setIsLoading(true)
-    try {
-      // Имитация запроса к API
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Создаем нового пользователя на основе данных из формы и кода приглашения
-      const newUser = {
-        id: `user-${Date.now()}`,
-        name: userData.name,
-        email: userData.email,
-        role: userData.organizationType, // company или supplier
-        organizationId: "org-1", // В реальном приложении это будет ID организации из кода приглашения
-        position: userData.position,
-        department: userData.department,
-      }
-
-      setUser(newUser)
-      localStorage.setItem("user", JSON.stringify(newUser))
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        role: user?.role || null,
-        isLoading,
-        login,
-        logout,
-        setUserRole,
-        registerWithInvite,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+      <AuthContext.Provider
+          value={{
+            user,
+            role: user?.role || null,
+            isLoading,
+            login,
+            register,
+            registerOrganization,
+            logout,
+            setUserRole,
+          }}
+      >
+        {children}
+      </AuthContext.Provider>
   )
 }
 

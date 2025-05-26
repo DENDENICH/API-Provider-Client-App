@@ -32,7 +32,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label"
 import { Icons } from "@/components/icons"
 
-// Типы данных для товара на складе
+// Типы данных для товара на ��кладе
 type ExpenseItem = {
   id: string
   articleNumber: string
@@ -176,7 +176,7 @@ export function ExpenseTable() {
 
       // Обновляем список товаров
       const updatedData = data.map((item) =>
-        item.id === selectedItem.id ? { ...item, quantity: newStockValue } : item,
+          item.id === selectedItem.id ? { ...item, quantity: newStockValue } : item,
       )
 
       // В реальном приложении здесь будет обновление состояния через API
@@ -204,10 +204,10 @@ export function ExpenseTable() {
       accessorKey: "name",
       header: ({ column }) => {
         return (
-          <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-            Название
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
+            <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+              Название
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
         )
       },
       cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
@@ -216,10 +216,10 @@ export function ExpenseTable() {
       accessorKey: "organization",
       header: ({ column }) => {
         return (
-          <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-            Организация
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
+            <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+              Организация
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
         )
       },
       cell: ({ row }) => <div>{row.getValue("organization")}</div>,
@@ -233,23 +233,23 @@ export function ExpenseTable() {
       accessorKey: "quantity",
       header: ({ column }) => {
         return (
-          <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-            Количество
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
+            <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+              Количество
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
         )
       },
       cell: ({ row }) => {
         const quantity = Number.parseInt(row.getValue("quantity"))
         const item = row.original
         return (
-          <Button
-            variant="link"
-            className={`p-0 h-auto ${quantity === 0 ? "text-red-500" : quantity < 10 ? "text-yellow-500" : ""}`}
-            onClick={() => handleOpenStockDialog(item)}
-          >
-            {quantity} шт.
-          </Button>
+            <Button
+                variant="link"
+                className={`p-0 h-auto ${quantity === 0 ? "text-red-500" : quantity < 10 ? "text-yellow-500" : ""}`}
+                onClick={() => handleOpenStockDialog(item)}
+            >
+              {quantity} шт.
+            </Button>
         )
       },
     },
@@ -260,21 +260,21 @@ export function ExpenseTable() {
         const item = row.original
 
         return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Открыть меню</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Действия</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => router.push(`/expense/${item.id}`)}>
-                <Eye className="mr-2 h-4 w-4" />
-                Просмотр
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Открыть меню</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Действия</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => router.push(`/expense/${item.id}`)}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Просмотр
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
         )
       },
     },
@@ -302,136 +302,136 @@ export function ExpenseTable() {
 
   // Рендер таблицы с товарами
   return (
-    <div className="w-full">
-      {/* Поле поиска по названию товара */}
-      <div className="flex items-center py-4">
-        <Input
-          placeholder="Поиск по названию..."
-          value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-          onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
-          className="max-w-sm"
-        />
-      </div>
-
-      {/* Таблица с товарами */}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  Нет результатов.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Пагинация */}
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <div className="flex-1 text-sm text-muted-foreground">{table.getFilteredRowModel().rows.length} товаров</div>
-        <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Назад
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
-            Вперед
-          </Button>
+      <div className="w-full">
+        {/* Поле поиска по названию товара */}
+        <div className="flex items-center py-4">
+          <Input
+              placeholder="Поиск по названию..."
+              value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+              onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
+              className="max-w-sm"
+          />
         </div>
-      </div>
-      {/* Модальное окно для редактирования количества товара */}
-      <Dialog open={isStockDialogOpen} onOpenChange={setIsStockDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Изменить количество товара</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            {selectedItem && (
-              <>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="item-name" className="text-right">
-                    Товар
-                  </Label>
-                  <div id="item-name" className="col-span-3 font-medium">
-                    {selectedItem.name}
-                  </div>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="item-article" className="text-right">
-                    Артикул
-                  </Label>
-                  <div id="item-article" className="col-span-3">
-                    {selectedItem.articleNumber}
-                  </div>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="item-organization" className="text-right">
-                    Организация
-                  </Label>
-                  <div id="item-organization" className="col-span-3">
-                    {selectedItem.organization}
-                  </div>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="stock-value" className="text-right">
-                    Количество
-                  </Label>
-                  <div className="col-span-3">
-                    <Input
-                      id="stock-value"
-                      type="number"
-                      min="0"
-                      value={newStockValue}
-                      onChange={(e) => setNewStockValue(Number(e.target.value))}
-                      className="w-20"
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsStockDialogOpen(false)}>
-              Отмена
-            </Button>
-            <Button onClick={handleUpdateStock} disabled={isUpdating}>
-              {isUpdating ? (
-                <>
-                  <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-                  Сохранение...
-                </>
+
+        {/* Таблица с товарами */}
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                        <TableHead key={header.id}>
+                          {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                        </TableHead>
+                    ))}
+                  </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                      <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                        {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                        ))}
+                      </TableRow>
+                  ))
               ) : (
-                "Сохранить"
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                      Нет результатов.
+                    </TableCell>
+                  </TableRow>
               )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Пагинация */}
+        <div className="flex items-center justify-end space-x-2 py-4">
+          <div className="flex-1 text-sm text-muted-foreground">{table.getFilteredRowModel().rows.length} товаров</div>
+          <div className="space-x-2">
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+            >
+              Назад
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+            <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+              Вперед
+            </Button>
+          </div>
+        </div>
+        {/* Модальное окно для редактирования количества товара */}
+        <Dialog open={isStockDialogOpen} onOpenChange={setIsStockDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Изменить количество товара</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              {selectedItem && (
+                  <>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="item-name" className="text-right">
+                        Товар
+                      </Label>
+                      <div id="item-name" className="col-span-3 font-medium">
+                        {selectedItem.name}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="item-article" className="text-right">
+                        Артикул
+                      </Label>
+                      <div id="item-article" className="col-span-3">
+                        {selectedItem.articleNumber}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="item-organization" className="text-right">
+                        Организация
+                      </Label>
+                      <div id="item-organization" className="col-span-3">
+                        {selectedItem.organization}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="stock-value" className="text-right">
+                        Количество
+                      </Label>
+                      <div className="col-span-3">
+                        <Input
+                            id="stock-value"
+                            type="number"
+                            min="0"
+                            value={newStockValue}
+                            onChange={(e) => setNewStockValue(Number(e.target.value))}
+                            className="w-20"
+                        />
+                      </div>
+                    </div>
+                  </>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsStockDialogOpen(false)}>
+                Отмена
+              </Button>
+              <Button onClick={handleUpdateStock} disabled={isUpdating}>
+                {isUpdating ? (
+                    <>
+                      <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+                      Сохранение...
+                    </>
+                ) : (
+                    "Сохранить"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
   )
 }
