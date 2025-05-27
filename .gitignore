@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+package-lock.json
 
 # next.js
 /.next/
@@ -28,3 +29,11 @@ next-env.d.ts
 
 # .idea
 .idea
+
+#yarn
+yarn.lock
+.yarn
+
+#pnp
+.pnp.cjs
+.pnp.loader.mjs
