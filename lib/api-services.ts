@@ -1,111 +1,137 @@
 import { apiClient } from "./api-client"
 import { API_ENDPOINTS } from "./api-config"
 import type {
-    UserRegisterRequest,
-    UserLoginRequest,
-    AuthResponse,
-    UsersCompanyWithUserInfo,
-    OrganizerRegisterRequest,
-    ProductRequest,
-    ProductResponse,
-    ProductsResponse,
-    SupplyCreateRequest,
-    SupplyResponse,
-    SuppliesResponse,
-    SupplyStatusUpdate,
-    SupplyAssembleCancelled,
-    SuppliersResponse,
-    SupplierResponse,
-    Expenses,
-    Expense,
+  UserRegisterRequest,
+  UserLoginRequest,
+  AuthResponse,
+  OrganizerRegisterRequest,
+  ProductRequest,
+  ProductResponse,
+  ProductsResponse,
+  SupplyCreateRequest,
+  SupplyResponse,
+  SuppliesResponse,
+  SupplyStatusUpdate,
+  SupplyAssembleCancelled,
+  SuppliersResponse,
+  SupplierResponse,
+  Expenses,
+  Expense,
+  UsersCompanyWithUserInfo,
 } from "./api-types"
 
-// Сервисы для аутентификации
+// Сервисы аутентификации
 export const authService = {
-    register: (data: UserRegisterRequest): Promise<AuthResponse> => apiClient.post(API_ENDPOINTS.AUTH_REGISTER, data),
+  async register(data: UserRegisterRequest): Promise<AuthResponse> {
+    return apiClient.post<AuthResponse>(API_ENDPOINTS.AUTH_REGISTER, data)
+  },
 
-    login: (data: UserLoginRequest): Promise<AuthResponse> => apiClient.post(API_ENDPOINTS.AUTH_LOGIN, data),
+  async login(data: UserLoginRequest): Promise<AuthResponse> {
+    return apiClient.post<AuthResponse>(API_ENDPOINTS.AUTH_LOGIN, data)
+  },
 }
 
-// Сервисы для пользователей
+// Сервисы пользователей
 export const usersService = {
-    getCompanyUsers: (): Promise<UsersCompanyWithUserInfo> => apiClient.get(API_ENDPOINTS.USERS_COMPANY),
+  async getCompanyUsers(): Promise<UsersCompanyWithUserInfo> {
+    return apiClient.get<UsersCompanyWithUserInfo>(API_ENDPOINTS.USERS_COMPANY)
+  },
 
-    addUserToCompany: (data: { link_code: number; role: "manager" | "employee" }): Promise<void> =>
-        apiClient.post(API_ENDPOINTS.USERS_COMPANY, data),
+  async linkUserToCompany(linkCode: number, role: "manager" | "employee"): Promise<void> {
+    return apiClient.post<void>(API_ENDPOINTS.USERS_COMPANY, { link_code: linkCode, role })
+  },
 
-    removeUserFromCompany: (userId: number): Promise<void> =>
-        apiClient.delete(`${API_ENDPOINTS.USERS_COMPANY}?user_id=${userId}`),
+  async removeUserFromCompany(userId?: number): Promise<void> {
+    const url = userId ? `${API_ENDPOINTS.USERS_COMPANY}?user_id=${userId}` : API_ENDPOINTS.USERS_COMPANY
+    return apiClient.delete<void>(url)
+  },
 }
 
-// Сервисы для организаций
+// Сервисы организаций
 export const organizersService = {
-    register: (data: OrganizerRegisterRequest): Promise<void> => apiClient.post(API_ENDPOINTS.ORGANIZERS_REGISTER, data),
+  async register(data: OrganizerRegisterRequest): Promise<void> {
+    return apiClient.post<void>(API_ENDPOINTS.ORGANIZERS_REGISTER, data)
+  },
 }
 
-// Сервисы для товаров
+// Сервисы товаров
 export const productsService = {
-    getProducts: (params?: { supplier_id?: number; add_quantity?: boolean }): Promise<ProductsResponse> => {
-        const searchParams = new URLSearchParams()
-        if (params?.supplier_id) searchParams.append("supplier_id", params.supplier_id.toString())
-        if (params?.add_quantity) searchParams.append("add_quantity", params.add_quantity.toString())
+  async create(data: ProductRequest): Promise<void> {
+    return apiClient.post<void>(API_ENDPOINTS.PRODUCTS, data)
+  },
 
-        const endpoint = searchParams.toString()
-            ? `${API_ENDPOINTS.PRODUCTS}?${searchParams.toString()}`
-            : API_ENDPOINTS.PRODUCTS
+  async getAll(supplierId?: number, addQuantity?: boolean): Promise<ProductsResponse> {
+    const params = new URLSearchParams()
+    if (supplierId) params.append("supplier_id", supplierId.toString())
+    if (addQuantity) params.append("add_quantity", "true")
 
-        return apiClient.get(endpoint)
-    },
+    const url = params.toString() ? `${API_ENDPOINTS.PRODUCTS}?${params}` : API_ENDPOINTS.PRODUCTS
+    return apiClient.get<ProductsResponse>(url)
+  },
 
-    getProduct: (id: number): Promise<ProductResponse> => apiClient.get(API_ENDPOINTS.PRODUCT_BY_ID(id)),
+  async getById(id: number): Promise<ProductResponse> {
+    return apiClient.get<ProductResponse>(API_ENDPOINTS.PRODUCT_BY_ID(id))
+  },
 
-    createProduct: (data: ProductRequest): Promise<void> => apiClient.post(API_ENDPOINTS.PRODUCTS, data),
-
-    updateProduct: (id: number, data: ProductResponse): Promise<ProductResponse> =>
-        apiClient.put(API_ENDPOINTS.PRODUCT_BY_ID(id), data),
+  async update(id: number, data: ProductResponse): Promise<ProductResponse> {
+    return apiClient.put<ProductResponse>(API_ENDPOINTS.PRODUCT_BY_ID(id), data)
+  },
 }
 
-// Сервисы для поставок
+// Сервисы поставок
 export const suppliesService = {
-    getSupplies: (params?: { is_wait_confirm?: boolean }): Promise<SuppliesResponse> => {
-        const searchParams = new URLSearchParams()
-        if (params?.is_wait_confirm) searchParams.append("is_wait_confirm", params.is_wait_confirm.toString())
+  async getAll(isWaitConfirm?: boolean): Promise<SuppliesResponse> {
+    const params = isWaitConfirm ? "?is_wait_confirm=true" : ""
+    return apiClient.get<SuppliesResponse>(`${API_ENDPOINTS.SUPPLIES}${params}`)
+  },
 
-        const endpoint = searchParams.toString()
-            ? `${API_ENDPOINTS.SUPPLIES}?${searchParams.toString()}`
-            : API_ENDPOINTS.SUPPLIES
+  async create(data: SupplyCreateRequest): Promise<SupplyResponse> {
+    return apiClient.post<SupplyResponse>(API_ENDPOINTS.SUPPLIES, data)
+  },
 
-        return apiClient.get(endpoint)
-    },
+  async getById(id: number): Promise<SupplyResponse> {
+    return apiClient.get<SupplyResponse>(API_ENDPOINTS.SUPPLY_BY_ID(id))
+  },
 
-    getSupply: (id: number): Promise<SupplyResponse> => apiClient.get(API_ENDPOINTS.SUPPLY_BY_ID(id)),
+  async updateStatus(id: number, data: SupplyStatusUpdate): Promise<SupplyResponse> {
+    return apiClient.patch<SupplyResponse>(API_ENDPOINTS.SUPPLY_STATUS(id), data)
+  },
 
-    createSupply: (data: SupplyCreateRequest): Promise<SupplyResponse> => apiClient.post(API_ENDPOINTS.SUPPLIES, data),
-
-    updateSupplyStatus: (id: number, data: SupplyStatusUpdate): Promise<SupplyResponse> =>
-        apiClient.patch(API_ENDPOINTS.SUPPLY_STATUS(id), data),
-
-    acceptOrCancelSupply: (id: number, data: SupplyAssembleCancelled): Promise<SupplyResponse> =>
-        apiClient.patch(API_ENDPOINTS.SUPPLY_BY_ID(id), data),
+  async acceptOrCancel(id: number, data: SupplyAssembleCancelled): Promise<SupplyResponse> {
+    return apiClient.patch<SupplyResponse>(API_ENDPOINTS.SUPPLY_BY_ID(id), data)
+  },
 }
 
-// Сервисы для поставщиков
+// Сервисы поставщиков
 export const suppliersService = {
-    getSuppliers: (): Promise<SuppliersResponse> => apiClient.get(API_ENDPOINTS.SUPPLIERS),
+  async getAll(): Promise<SuppliersResponse> {
+    return apiClient.get<SuppliersResponse>(API_ENDPOINTS.SUPPLIERS)
+  },
 
-    getSupplierByInn: (inn: string): Promise<SupplierResponse> => apiClient.get(API_ENDPOINTS.SUPPLIER_BY_INN(inn)),
+  async getByInn(inn: number): Promise<SupplierResponse> {
+    return apiClient.get<SupplierResponse>(API_ENDPOINTS.SUPPLIER_BY_INN(inn))
+  },
 
-    addSupplier: (id: number): Promise<void> => apiClient.post(API_ENDPOINTS.SUPPLIER_BY_ID(id), {}),
+  async addToContacts(id: number): Promise<void> {
+    return apiClient.post<void>(API_ENDPOINTS.SUPPLIER_BY_ID(id), {})
+  },
 
-    removeSupplier: (id: number): Promise<void> => apiClient.delete(API_ENDPOINTS.SUPPLIER_BY_ID(id)),
+  async removeFromContacts(id: number): Promise<void> {
+    return apiClient.delete<void>(API_ENDPOINTS.SUPPLIER_BY_ID(id))
+  },
 }
 
-// Сервисы для расходов склада
+// Сервисы расходов склада
 export const expensesService = {
-    getExpenses: (): Promise<Expenses> => apiClient.get(API_ENDPOINTS.EXPENSES),
+  async getAll(): Promise<Expenses> {
+    return apiClient.get<Expenses>(API_ENDPOINTS.EXPENSES)
+  },
 
-    updateExpenseQuantity: (id: number, quantity: number): Promise<Expense> =>
-        apiClient.patch(API_ENDPOINTS.EXPENSE_BY_ID(id), { quantity }),
+  async updateQuantity(id: number, quantity: number): Promise<Expense> {
+    return apiClient.patch<Expense>(API_ENDPOINTS.EXPENSE_BY_ID(id), { quantity })
+  },
 
-    deleteExpense: (id: number): Promise<void> => apiClient.delete(API_ENDPOINTS.EXPENSE_BY_ID(id)),
+  async delete(id: number): Promise<void> {
+    return apiClient.delete<void>(API_ENDPOINTS.EXPENSE_BY_ID(id))
+  },
 }

@@ -1,11 +1,9 @@
-import { API_BASE_URL } from "./api-config"
-import type { ApiError } from "./api-types"
-
 export class ApiClientError extends Error {
   constructor(
     message: string,
     public status: number,
     public code: string,
+    public details?: any,
   ) {
     super(message)
     this.name = "ApiClientError"
@@ -13,206 +11,155 @@ export class ApiClientError extends Error {
 }
 
 class ApiClient {
-  private baseURL: string
   private token: string | null = null
-
-  constructor(baseURL: string) {
-    this.baseURL = baseURL
-    // Загружаем токен из localStorage при инициализации
-    if (typeof window !== "undefined") {
-      this.token = localStorage.getItem("access_token")
-    }
-  }
 
   setToken(token: string) {
     this.token = token
-    if (typeof window !== "undefined") {
-      localStorage.setItem("access_token", token)
-    }
+    localStorage.setItem("access_token", token)
   }
 
   clearToken() {
     this.token = null
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("access_token")
-    }
+    localStorage.removeItem("access_token")
   }
 
-  private getErrorMessage(status: number, details?: string | string[]): string {
-    const detailsMessage = Array.isArray(details) ? details.join(", ") : details || ""
-
-    switch (status) {
-      case 400:
-        return `Неверный запрос: ${detailsMessage}`
-      case 401:
-        return "Необходима авторизация. Пожалуйста, войдите в систему"
-      case 403:
-        return "Доступ запрещен. У вас нет прав для выполнения этого действия"
-      case 404:
-        // Для логина возвращаем специальное сообщение
-        if (detailsMessage.toLowerCase().includes("user") || detailsMessage.toLowerCase().includes("пользователь")) {
-          return "Пользователь с указанными данными не найден. Проверьте email и пароль"
-        }
-        return `Ресурс не найден: ${detailsMessage}`
-      case 422:
-        return `Ошибка валидации данных: ${detailsMessage}`
-      case 500:
-        return "Внутренняя ошибка сервера. Попробуйте позже"
-      case 502:
-        return "Сервер временно недоступен. Попробуйте позже"
-      case 503:
-        return "Сервис временно недоступен. Попробуйте позже"
-      default:
-        if (status >= 500) {
-          return "Ошибка сервера. Попробуйте позже"
-        }
-        return detailsMessage || "Произошла неизвестная ошибка"
-    }
-  }
-
-  private getErrorCode(status: number, endpoint?: string): string {
-    switch (status) {
-      case 400:
-        return "BAD_REQUEST"
-      case 401:
-        return "UNAUTHORIZED"
-      case 403:
-        return "FORBIDDEN"
-      case 404:
-        // Специальный код для логина
-        if (endpoint?.includes("/auth/login")) {
-          return "USER_NOT_FOUND"
-        }
-        return "NOT_FOUND"
-      case 422:
-        return "VALIDATION_ERROR"
-      case 500:
-        return "INTERNAL_SERVER_ERROR"
-      case 502:
-        return "BAD_GATEWAY"
-      case 503:
-        return "SERVICE_UNAVAILABLE"
-      default:
-        if (status >= 500) {
-          return "SERVER_ERROR"
-        }
-        return "UNKNOWN_ERROR"
-    }
-  }
-
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`
-
+  private getHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-    }
-
-    // Добавляем существующие заголовки из options
-    if (options.headers) {
-      if (options.headers instanceof Headers) {
-        options.headers.forEach((value, key) => {
-          headers[key] = value
-        })
-      } else if (Array.isArray(options.headers)) {
-        options.headers.forEach(([key, value]) => {
-          headers[key] = value
-        })
-      } else {
-        Object.assign(headers, options.headers)
-      }
     }
 
     if (this.token) {
       headers.Authorization = `Bearer ${this.token}`
     }
 
-    const config: RequestInit = {
-      ...options,
-      headers,
-    }
+    return headers
+  }
 
-    try {
-      const response = await fetch(url, config)
-
-      // Если ответ пустой (204 No Content), возвращаем пустой объект
+  private async handleResponse<T>(response: Response): Promise<T> {
+    if (response.ok) {
+      // Для 204 No Content возвращаем пустой объект
       if (response.status === 204) {
         return {} as T
       }
+      return response.json()
+    }
 
-      // Если ответ успешный, парсим JSON
-      if (response.ok) {
-        const data = await response.json()
-        return data
+    let errorMessage = "Произошла ошибка"
+    let errorCode = "UNKNOWN_ERROR"
+    let errorDetails: any = null
+
+    try {
+      const errorData = await response.json()
+      errorDetails = errorData.details
+
+      if (typeof errorData.details === "string") {
+        errorMessage = errorData.details
+      } else if (Array.isArray(errorData.details)) {
+        errorMessage = errorData.details.join(", ")
       }
+    } catch {
+      // Если не удалось распарсить JSON, используем стандартные сообщения
+    }
 
-      // Обработка ошибок
-      let errorData: ApiError | null = null
-      try {
-        errorData = await response.json()
-      } catch {
-        // Если не удалось распарсить JSON, используем статус текст
-        errorData = { details: response.statusText }
-      }
-
-      const errorMessage = this.getErrorMessage(response.status, errorData?.details)
-      const errorCode = this.getErrorCode(response.status, endpoint)
-
-      // Для 401 ошибки очищаем токен
-      if (response.status === 401) {
+    switch (response.status) {
+      case 400:
+        if (response.url.includes("/auth/register")) {
+          errorMessage = "Пользователь с таким email уже существует"
+          errorCode = "USER_ALREADY_EXISTS"
+        } else {
+          errorMessage = errorMessage || "Неверные данные запроса"
+          errorCode = "BAD_REQUEST"
+        }
+        break
+      case 401:
+        errorMessage = "Необходима авторизация"
+        errorCode = "UNAUTHORIZED"
         this.clearToken()
-        // Можно добавить редирект на страницу логина
-        if (typeof window !== "undefined" && !endpoint.includes("/auth/")) {
+        if (typeof window !== "undefined") {
           window.location.href = "/login"
         }
-      }
-
-      throw new ApiClientError(errorMessage, response.status, errorCode)
-    } catch (error) {
-      if (error instanceof ApiClientError) {
-        throw error
-      }
-
-      // Обработка сетевых ошибок
-      if (error instanceof TypeError && error.message.includes("fetch")) {
-        throw new ApiClientError(
-          "Не удалось подключиться к серверу. Проверьте подключение к интернету",
-          0,
-          "NETWORK_ERROR",
-        )
-      }
-
-      throw new ApiClientError("Произошла неизвестная ошибка", 0, "UNKNOWN_ERROR")
+        break
+      case 403:
+        errorMessage = "Недостаточно прав для выполнения операции"
+        errorCode = "FORBIDDEN"
+        break
+      case 404:
+        if (response.url.includes("/auth/login")) {
+          errorMessage = "Пользователь с указанными данными не найден"
+          errorCode = "USER_NOT_FOUND"
+        } else {
+          errorMessage = "Запрашиваемый ресурс не найден"
+          errorCode = "NOT_FOUND"
+        }
+        break
+      case 422:
+        errorMessage = errorMessage || "Ошибка валидации данных"
+        errorCode = "VALIDATION_ERROR"
+        break
+      case 500:
+        errorMessage = "Внутренняя ошибка сервера"
+        errorCode = "INTERNAL_SERVER_ERROR"
+        break
+      case 502:
+        errorMessage = "Сервер временно недоступен"
+        errorCode = "BAD_GATEWAY"
+        break
+      case 503:
+        errorMessage = "Сервис временно недоступен"
+        errorCode = "SERVICE_UNAVAILABLE"
+        break
+      default:
+        if (response.status >= 500) {
+          errorMessage = "Ошибка сервера. Попробуйте позже"
+          errorCode = "SERVER_ERROR"
+        }
     }
+
+    throw new ApiClientError(errorMessage, response.status, errorCode, errorDetails)
   }
 
-  async get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: "GET" })
+  async get<T>(url: string): Promise<T> {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: this.getHeaders(),
+    })
+    return this.handleResponse<T>(response)
   }
 
-  async post<T>(endpoint: string, data?: any): Promise<T> {
-    return this.request<T>(endpoint, {
+  async post<T>(url: string, data?: any): Promise<T> {
+    const response = await fetch(url, {
       method: "POST",
+      headers: this.getHeaders(),
       body: data ? JSON.stringify(data) : undefined,
     })
+    return this.handleResponse<T>(response)
   }
 
-  async put<T>(endpoint: string, data: any): Promise<T> {
-    return this.request<T>(endpoint, {
+  async put<T>(url: string, data: any): Promise<T> {
+    const response = await fetch(url, {
       method: "PUT",
+      headers: this.getHeaders(),
       body: JSON.stringify(data),
     })
+    return this.handleResponse<T>(response)
   }
 
-  async patch<T>(endpoint: string, data: any): Promise<T> {
-    return this.request<T>(endpoint, {
+  async patch<T>(url: string, data: any): Promise<T> {
+    const response = await fetch(url, {
       method: "PATCH",
+      headers: this.getHeaders(),
       body: JSON.stringify(data),
     })
+    return this.handleResponse<T>(response)
   }
 
-  async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: "DELETE" })
+  async delete<T>(url: string): Promise<T> {
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: this.getHeaders(),
+    })
+    return this.handleResponse<T>(response)
   }
 }
 
-export const apiClient = new ApiClient(API_BASE_URL)
+export const apiClient = new ApiClient()

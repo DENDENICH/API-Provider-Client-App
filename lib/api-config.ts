@@ -1,33 +1,31 @@
-// Конфигурация API
-export const API_BASE_URL = "http://localhost:7654"
+const API_BASE_URL = "http://localhost:7654"
 
-// Эндпоинты API
 export const API_ENDPOINTS = {
-    // Аутентификация
-    AUTH_REGISTER: "/auth/register",
-    AUTH_LOGIN: "/auth/login",
+  // Аутентификация
+  AUTH_REGISTER: `${API_BASE_URL}/auth/register`,
+  AUTH_LOGIN: `${API_BASE_URL}/auth/login`,
 
-    // Пользователи
-    USERS_COMPANY: "/users/company",
+  // Пользователи
+  USERS_COMPANY: `${API_BASE_URL}/users/company`,
 
-    // Организации
-    ORGANIZERS_REGISTER: "/organizers/register",
+  // Организации
+  ORGANIZERS_REGISTER: `${API_BASE_URL}/organizers/register`,
 
-    // Товары
-    PRODUCTS: "/products",
-    PRODUCT_BY_ID: (id: number) => `/products/${id}`,
+  // Товары
+  PRODUCTS: `${API_BASE_URL}/products`,
+  PRODUCT_BY_ID: (id: number) => `${API_BASE_URL}/products/${id}`,
 
-    // Поставки
-    SUPPLIES: "/supplies",
-    SUPPLY_BY_ID: (id: number) => `/supplies/${id}`,
-    SUPPLY_STATUS: (id: number) => `/supplies/${id}/status`,
+  // Поставки
+  SUPPLIES: `${API_BASE_URL}/supplies`,
+  SUPPLY_BY_ID: (id: number) => `${API_BASE_URL}/supplies/${id}`,
+  SUPPLY_STATUS: (id: number) => `${API_BASE_URL}/supplies/${id}/status`,
 
-    // Поставщики
-    SUPPLIERS: "/suppliers",
-    SUPPLIER_BY_INN: (inn: string) => `/suppliers/${inn}`,
-    SUPPLIER_BY_ID: (id: number) => `/suppliers/${id}`,
+  // Поставщики
+  SUPPLIERS: `${API_BASE_URL}/suppliers`,
+  SUPPLIER_BY_INN: (inn: number) => `${API_BASE_URL}/suppliers/${inn}`,
+  SUPPLIER_BY_ID: (id: number) => `${API_BASE_URL}/suppliers/${id}`,
 
-    // Расходы склада
-    EXPENSES: "/expenses/",
-    EXPENSE_BY_ID: (id: number) => `/expenses/${id}/`,
+  // Расходы склада
+  EXPENSES: `${API_BASE_URL}/expenses/`,
+  EXPENSE_BY_ID: (id: number) => `${API_BASE_URL}/expenses/${id}/`,
 } as const

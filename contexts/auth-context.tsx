@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { authService, organizersService } from "@/lib/api-services"
 import { apiClient } from "@/lib/api-client"
-import type { UserLoginRequest, UserRegisterRequest, OrganizerRegisterRequest } from "@/lib/api-types"
+import type { UserLoginRequest, UserRegisterRequest, OrganizerRegisterRequest, AuthResponse } from "@/lib/api-types"
 
 type UserRole = "company" | "supplier" | "employee" | null
 
@@ -22,7 +22,7 @@ interface AuthContextType {
   role: UserRole
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (userData: UserRegisterRequest) => Promise<string | null>
+  register: (userData: UserRegisterRequest) => Promise<AuthResponse>
   registerOrganization: (orgData: OrganizerRegisterRequest) => Promise<void>
   logout: () => void
   setUserRole: (role: UserRole) => void
@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const register = async (userData: UserRegisterRequest): Promise<string | null> => {
+  const register = async (userData: UserRegisterRequest): Promise<AuthResponse> => {
     setIsLoading(true)
     try {
       const response = await authService.register(userData)
@@ -93,23 +93,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Сохраняем токен
       apiClient.setToken(response.access_token)
 
-      // Если нужна регистрация организации, возвращаем соответствующий маршрут
-      if (response.next_route === "organizers/register") {
-        return "organizers/register"
+      // Если НЕ нужна регистрация организации, создаем пользователя
+      if (response.next_route !== "organizers/register") {
+        const newUser: User = {
+          id: "user-1",
+          name: userData.name,
+          email: userData.email,
+          role: userData.user_type === "organizer" ? "company" : "employee",
+        }
+
+        setUser(newUser)
+        localStorage.setItem("user", JSON.stringify(newUser))
       }
 
-      // Создаем объект пользователя
-      const newUser: User = {
-        id: "user-1",
-        name: userData.name,
-        email: userData.email,
-        role: userData.user_type === "organizer" ? "company" : "employee",
-      }
-
-      setUser(newUser)
-      localStorage.setItem("user", JSON.stringify(newUser))
-
-      return null // Успешная регистрация без дополнительных шагов
+      return response
     } finally {
       setIsLoading(false)
     }
@@ -146,20 +143,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-      <AuthContext.Provider
-          value={{
-            user,
-            role: user?.role || null,
-            isLoading,
-            login,
-            register,
-            registerOrganization,
-            logout,
-            setUserRole,
-          }}
-      >
-        {children}
-      </AuthContext.Provider>
+    <AuthContext.Provider
+      value={{
+        user,
+        role: user?.role || null,
+        isLoading,
+        login,
+        register,
+        registerOrganization,
+        logout,
+        setUserRole,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
   )
 }
 

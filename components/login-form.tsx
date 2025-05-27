@@ -62,16 +62,17 @@ export function LoginForm() {
               "USER_NOT_FOUND",
             ),
           )
-        } else if (err.code === "NEED_ORG_REGISTRATION") {
-          router.push("/register/company")
-          return
-        } else {
-          setError(err)
-        }
-      } else if (err instanceof Error) {
-        if (err.message === "NEED_ORG_REGISTRATION") {
-          router.push("/register/company")
-          return
+    //     } else if (err.code === "NEED_ORG_REGISTRATION") {
+    //       router.push("/register/company")
+    //       return
+    //     } else {
+    //       setError(err)
+    //     }
+    //   } else if (err instanceof Error) {
+    //     if (err.message === "NEED_ORG_REGISTRATION") {
+    //       router.push("/register/company")
+    //       return
+    //     }
         }
         setError(new ApiClientError(err.message, 0, "UNKNOWN_ERROR"))
       } else {
