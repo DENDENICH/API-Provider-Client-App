@@ -11,18 +11,35 @@ export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElemen
   const pathname = usePathname()
   const { role } = useAuth()
 
-  // Общие пункты меню для всех ролей
+  // Для пользователей без организации показываем только главную страницу
+  if (role === "not_have_organizer") {
+    return (
+      <nav className={cn("flex items-center space-x-4 lg:space-x-6", className)} {...props}>
+        <Link
+          href="/dashboard"
+          className={cn(
+            "text-sm font-medium transition-colors hover:text-primary",
+            pathname === "/dashboard" || pathname.startsWith("/dashboard/") ? "text-primary" : "text-muted-foreground",
+          )}
+        >
+          Главная
+        </Link>
+      </nav>
+    )
+  }
+
+  // Общие пункты меню для всех ролей с организацией
   const commonLinks = [
     { href: "/dashboard", label: "Главная" },
     { href: "/deliveries", label: "Поставки" },
-    { href: "/employees", label: "Сотрудники" }, // Добавляем новый пункт меню
+    { href: "/employees", label: "Сотрудники" },
   ]
 
   // Пункты меню для компаний
   const companyLinks = [
     { href: "/suppliers", label: "Поставщики" },
     { href: "/products", label: "Товары" },
-    { href: "/expense", label: "Склад" }, // Добавляем новый пункт меню
+    { href: "/expense", label: "Склад" },
   ]
 
   // Пункты меню для поставщиков

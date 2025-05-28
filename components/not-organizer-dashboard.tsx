@@ -21,8 +21,10 @@ export function NotOrganizerDashboard() {
       try {
         setIsLoading(true)
         setError(null)
+        console.log("Запрашиваем код привязки...")
         const response = await usersService.getLinkCode()
-        setLinkCode(response.link_code)
+        console.log("Ответ от API:", response)
+        setLinkCode(response.linkcode) // Исправлено: linkcode вместо link_code
       } catch (err) {
         console.error("Ошибка при получении кода привязки:", err)
         if (err instanceof ApiClientError) {

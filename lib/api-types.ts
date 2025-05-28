@@ -43,9 +43,9 @@ export interface UsersCompanyWithUserInfo {
   users: UserCompanyWithUserInfo[]
 }
 
-// Тип для кода привязки
+// Исправленный тип для кода привязки
 export interface LinkCodeResponse {
-  link_code: number
+  linkcode: number
 }
 
 // Типы для организаций
