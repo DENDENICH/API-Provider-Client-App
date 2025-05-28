@@ -18,6 +18,7 @@ import type {
   Expenses,
   Expense,
   UsersCompanyWithUserInfo,
+  LinkCodeResponse,
 } from "./api-types"
 
 // Сервисы аутентификации
@@ -35,6 +36,10 @@ export const authService = {
 export const usersService = {
   async getCompanyUsers(): Promise<UsersCompanyWithUserInfo> {
     return apiClient.get<UsersCompanyWithUserInfo>(API_ENDPOINTS.USERS_COMPANY)
+  },
+
+  async getLinkCode(): Promise<LinkCodeResponse> {
+    return apiClient.get<LinkCodeResponse>(API_ENDPOINTS.LINK_CODE)
   },
 
   async linkUserToCompany(linkCode: number, role: "manager" | "employee"): Promise<void> {

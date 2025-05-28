@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:7654"
+const API_BASE_URL = "http://localhost"
 
 export const API_ENDPOINTS = {
   // Аутентификация
@@ -7,6 +7,7 @@ export const API_ENDPOINTS = {
 
   // Пользователи
   USERS_COMPANY: `${API_BASE_URL}/users/company`,
+  LINK_CODE: `${API_BASE_URL}/linkcode`,
 
   // Организации
   ORGANIZERS_REGISTER: `${API_BASE_URL}/organizers/register`,
