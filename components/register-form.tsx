@@ -87,17 +87,11 @@ export function RegisterForm() {
 
       const response = await register(userData)
 
-      // Добавляем отладочную информацию
-      console.log("Registration response:", response)
-      console.log("Next route:", response?.next_route)
-      console.log("User type:", values.user_type)
-
       // Проверяем next_route из ответа API
-      if (response && response.next_route == "organizers/register") {
-        console.log("Redirecting to company registration")
+      if (response && response.next_route === "organizers/register") {
         router.push("/register/company")
       } else {
-        console.log("Redirecting to dashboard")
+        // Если next_route === "/", перенаправляем на NotOrganizerDashboard
         router.push("/dashboard")
       }
     } catch (err) {

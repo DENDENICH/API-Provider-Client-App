@@ -23,6 +23,13 @@ export interface AuthResponse {
   next_route: "organizers/register" | "/"
 }
 
+// Новый тип для ответа после логина
+export interface AuthResponseAfterLogin {
+  access_token: string
+  type_token: string
+  role_organizer: "company" | "supplier" | "not_have_organizer"
+}
+
 // Типы для пользователей
 export interface UserCompanyWithUserInfo {
   name: string

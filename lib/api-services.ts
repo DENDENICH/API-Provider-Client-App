@@ -19,6 +19,7 @@ import type {
   Expense,
   UsersCompanyWithUserInfo,
   LinkCodeResponse,
+  AuthResponseAfterLogin,
 } from "./api-types"
 
 // Сервисы аутентификации
@@ -27,8 +28,8 @@ export const authService = {
     return apiClient.post<AuthResponse>(API_ENDPOINTS.AUTH_REGISTER, data)
   },
 
-  async login(data: UserLoginRequest): Promise<AuthResponse> {
-    return apiClient.post<AuthResponse>(API_ENDPOINTS.AUTH_LOGIN, data)
+  async login(data: UserLoginRequest): Promise<AuthResponseAfterLogin> {
+    return apiClient.post<AuthResponseAfterLogin>(API_ENDPOINTS.AUTH_LOGIN, data)
   },
 }
 
