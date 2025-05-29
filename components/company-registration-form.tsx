@@ -68,9 +68,9 @@ export function CompanyRegistrationForm() {
       // Создаем базовый объект пользователя в localStorage, если его нет
       const storedUser = localStorage.getItem("user")
       if (!storedUser) {
-        // Получаем email из localStorage или используем временный
+        // Получаем актуальные данные пользователя
         const email = localStorage.getItem("registered_email") || "user@example.com"
-        const name = email.split("@")[0]
+        const name = localStorage.getItem("registered_name") || email.split("@")[0]
 
         const newUser = {
           id: "user-1",

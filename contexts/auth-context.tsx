@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: email.split("@")[0],
         email,
         organizerRole: response.role_organizer,
-        userRole: response.user_role as UserRole, // Явное приведение типа
+        userRole: response.user_type as UserRole, // Явное приведение типа
       }
 
       console.log("Created user object:", newUser) // Для отладки
@@ -83,9 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem("user", JSON.stringify(newUser))
 
       // Если у пользователя нет организации, перенаправляем на страницу с кодом
-      // if (response.role_organizer === "not_have_organizer") {
-      //   throw new Error("NO_ORGANIZER")
-      // }
+      if (response.role_organizer === "not_have_organizer") {
+        throw new Error("NO_ORGANIZER")
+      }
     } finally {
       setIsLoading(false)
     }
@@ -100,6 +100,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Сохраняем токен
       apiClient.setToken(response.access_token)
+
+      // Сохраняем данные пользователя для последующего использования
+      localStorage.setItem("registered_email", userData.email)
+      localStorage.setItem("registered_name", userData.name)
 
       // Если НЕ нужна регистрация организации, создаем пользователя
       if (response.next_route !== "organizers/register") {
@@ -132,6 +136,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await organizersService.register(orgData)
       console.log("organizersService.register response:", response)
 
+      // Получаем актуальные данные пользователя
+      const registeredEmail = localStorage.getItem("registered_email")
+      const registeredName = localStorage.getItem("registered_name")
+
       // Обновляем роль пользователя
       if (user) {
         const updatedUser: User = {
@@ -149,22 +157,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         console.error("No user found when trying to update after organization registration")
 
-        // Если пользователя нет, создаем его на основе данных из localStorage
-        const storedUser = localStorage.getItem("user")
-        if (storedUser) {
-          try {
-            const userData = JSON.parse(storedUser)
-            const newUser: User = {
-              ...userData,
-              organizerRole: orgData.role as OrganizerRole,
-              userRole: "admin" as UserRole,
-            }
+        // Если пользователя нет, создаем его на основе сохраненных данных
+        if (registeredEmail && registeredName) {
+          const newUser: User = {
+            id: "user-1",
+            name: registeredName,
+            email: registeredEmail,
+            organizerRole: orgData.role as OrganizerRole,
+            userRole: "admin" as UserRole,
+          }
 
-            console.log("Created new user from localStorage:", newUser)
-            setUser(newUser)
-            localStorage.setItem("user", JSON.stringify(newUser))
-          } catch (error) {
-            console.error("Error parsing stored user data:", error)
+          console.log("Created new user from registered data:", newUser)
+          setUser(newUser)
+          localStorage.setItem("user", JSON.stringify(newUser))
+        } else {
+          // Fallback к данным из localStorage
+          const storedUser = localStorage.getItem("user")
+          if (storedUser) {
+            try {
+              const userData = JSON.parse(storedUser)
+              const newUser: User = {
+                ...userData,
+                organizerRole: orgData.role as OrganizerRole,
+                userRole: "admin" as UserRole,
+              }
+
+              console.log("Created new user from localStorage:", newUser)
+              setUser(newUser)
+              localStorage.setItem("user", JSON.stringify(newUser))
+            } catch (error) {
+              console.error("Error parsing stored user data:", error)
+            }
           }
         }
       }
@@ -181,6 +204,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     apiClient.clearToken()
     localStorage.removeItem("user")
     localStorage.removeItem("access_token")
+    localStorage.removeItem("registered_email")
+    localStorage.removeItem("registered_name")
   }
 
   // Функция для проверки прав доступа
