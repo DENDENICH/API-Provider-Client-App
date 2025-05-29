@@ -1,131 +1,102 @@
 "use client"
 
-import { useState } from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import * as z from "zod"
+import * as React from "react"
 import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Icons } from "@/components/icons"
-import { useToast } from "@/components/ui/use-toast"
-import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
+import { usersService } from "@/lib/api-services"
 
-// Схема валидации формы
-const formSchema = z.object({
-  position: z.string({
-    required_error: "Выберите должность",
-  }),
-  inviteCode: z.string().min(1, {
-    message: "Введите пригласительный код",
-  }),
-})
+interface InviteEmployeeFormProps {
+  onSuccess?: () => void
+}
 
-export function InviteEmployeeForm({ organizationType }: { organizationType: string }) {
-  const [isSubmitting, setIsSubmitting] = useState(false)
+export function InviteEmployeeForm({ onSuccess }: InviteEmployeeFormProps) {
+  const [linkCode, setLinkCode] = React.useState("")
+  const [role, setRole] = React.useState<"manager" | "employee">("employee")
+  const [isLoading, setIsLoading] = React.useState(false)
   const { toast } = useToast()
-  const router = useRouter()
 
-  // Инициализация формы
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      position: "",
-      inviteCode: "",
-    },
-  })
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
 
-  // Обработчик отправки формы
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsSubmitting(true)
-    try {
-      // В реальном приложении здесь будет API-запрос для добавления сотрудника
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Имитация успешного добавления
-      toast({
-        title: "Сотрудник добавлен",
-        description: `Сотрудник успешно добавлен в вашу организацию.`,
-      })
-
-      // Перенаправление на страницу со списком сотрудников
-      router.push("/employees")
-    } catch (error) {
-      console.error("Ошибка при добавлении сотрудника:", error)
+    if (!linkCode.trim()) {
       toast({
         title: "Ошибка",
-        description: "Не удалось добавить сотрудника. Проверьте пригласительный код.",
+        description: "Введите код привязки",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const linkCodeNumber = Number.parseInt(linkCode.trim())
+    if (isNaN(linkCodeNumber)) {
+      toast({
+        title: "Ошибка",
+        description: "Код привязки должен быть числом",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsLoading(true)
+      console.log("Adding user with link code:", linkCodeNumber, "role:", role)
+
+      await usersService.addUserByLinkCode(linkCodeNumber, role)
+
+      // Очищаем форму
+      setLinkCode("")
+      setRole("employee")
+
+      onSuccess?.()
+    } catch (error) {
+      console.error("Error adding user:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось добавить сотрудника. Проверьте код привязки.",
         variant: "destructive",
       })
     } finally {
-      setIsSubmitting(false)
+      setIsLoading(false)
     }
   }
 
   return (
-    <div className="space-y-6">
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="position"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Должность</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите должность" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="менеджер">Менеджер</SelectItem>
-                    <SelectItem value="сотрудник">Сотрудник</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormDescription>Должность нового сотрудника</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="linkCode">Код привязки</Label>
+        <Input
+          id="linkCode"
+          type="text"
+          placeholder="Введите 10-значный код"
+          value={linkCode}
+          onChange={(e) => setLinkCode(e.target.value)}
+          maxLength={10}
+          required
+        />
+        <p className="text-sm text-muted-foreground">
+          Попросите сотрудника предоставить код привязки из его личного кабинета
+        </p>
+      </div>
 
-          <FormField
-            control={form.control}
-            name="inviteCode"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Пригласительный код</FormLabel>
-                <FormControl>
-                  <Input placeholder="Введите пригласительный код" {...field} />
-                </FormControl>
-                <FormDescription>Код приглашения для нового сотрудника</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+      <div className="space-y-2">
+        <Label htmlFor="role">Роль в организации</Label>
+        <Select value={role} onValueChange={(value: "manager" | "employee") => setRole(value)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Выберите роль" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="employee">Сотрудник</SelectItem>
+            <SelectItem value="manager">Менеджер</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            style={{
-              backgroundColor: "#f97316",
-              color: "white",
-              borderColor: "#f97316",
-            }}
-            className="hover:bg-[#ea580c]"
-          >
-            {isSubmitting ? (
-              <>
-                <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-                Добавление...
-              </>
-            ) : (
-              "Добавить сотрудника"
-            )}
-          </Button>
-        </form>
-      </Form>
-    </div>
+      <Button type="submit" className="w-full" disabled={isLoading}>
+        {isLoading ? "Добавление..." : "Добавить сотрудника"}
+      </Button>
+    </form>
   )
 }

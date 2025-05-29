@@ -53,7 +53,10 @@ export const usersService = {
 
   // Привязка пользователя к организации
   addUserByLinkCode: async (linkCode: number, role: "manager" | "employee"): Promise<void> => {
-    return apiClient.post<void>(`${API_BASE_URL}/users/company`, { link_code: linkCode, role })
+    return apiClient.post<void>(`${API_BASE_URL}/users/company`, {
+      link_code: linkCode,
+      role,
+    })
   },
 
   // Удаление пользователя из организации
