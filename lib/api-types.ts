@@ -27,7 +27,7 @@ export interface AuthResponseAfterLogin {
   access_token: string
   type_token: string
   role_organizer: "company" | "supplier" | "not_have_organizer"
-  user_type: "admin" | "manager" | "employee"
+  user_role: "admin" | "manager" | "employee"
 }
 
 // Типы для пользователей

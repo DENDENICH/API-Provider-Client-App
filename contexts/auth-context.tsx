@@ -63,6 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const loginData: UserLoginRequest = { email, password }
       const response = await authService.login(loginData)
 
+      console.log("Login response:", response) // Для отладки
+
       // Сохраняем токен
       apiClient.setToken(response.access_token)
 
@@ -72,12 +74,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: email.split("@")[0],
         email,
         organizerRole: response.role_organizer,
-        userRole: response.user_type,
+        userRole: response.user_role as UserRole, // Явное приведение типа
       }
+
+      console.log("Created user object:", newUser) // Для отладки
 
       setUser(newUser)
       localStorage.setItem("user", JSON.stringify(newUser))
 
+      // Если у пользователя нет организации, перенаправляем на страницу с кодом
+      // if (response.role_organizer === "not_have_organizer") {
+      //   throw new Error("NO_ORGANIZER")
+      // }
     } finally {
       setIsLoading(false)
     }
@@ -87,6 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true)
     try {
       const response = await authService.register(userData)
+
+      console.log("Register response:", response) // Для отладки
 
       // Сохраняем токен
       apiClient.setToken(response.access_token)
@@ -98,8 +108,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: userData.name,
           email: userData.email,
           organizerRole: "not_have_organizer", // По умолчанию
-          userRole: "employee", // По умолчанию
+          userRole: userData.user_type === "organizer" ? "admin" : "employee", // Определяем роль на основе типа пользователя
         }
+
+        console.log("Created user object after register:", newUser) // Для отладки
 
         setUser(newUser)
         localStorage.setItem("user", JSON.stringify(newUser))
@@ -121,8 +133,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const updatedUser = {
           ...user,
           organizerRole: orgData.role as OrganizerRole,
-          userRole: "admin", // При регистрации организации пользователь становится админом
+          userRole: "admin" as UserRole, // При регистрации организации пользователь становится админом
         }
+
+        console.log("Updated user object after org register:", updatedUser) // Для отладки
+
         setUser(updatedUser)
         localStorage.setItem("user", JSON.stringify(updatedUser))
       }
@@ -155,6 +170,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       case "view_suppliers":
         // Все сотрудники компании могут просматривать поставщиков
         return user.organizerRole === "company"
+
+      case "view_employees":
+        // Только админы могут просматривать сотрудников
+        return user.userRole === "admin"
 
       default:
         return false

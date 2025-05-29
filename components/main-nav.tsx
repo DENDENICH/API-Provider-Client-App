@@ -22,6 +22,11 @@ export function MainNav({ className, items, ...props }: MainNavProps) {
   // Определяем доступные пункты меню в зависимости от роли и типа организации
   const getNavItems = () => {
     // Если у пользователя нет организации, не показываем никаких пунктов меню
+    console.log("/dashboard get")
+    console.log("User role - " + user?.userRole)
+    console.log("User organizer role - " + user?.organizerRole)
+
+
     if (!user || user.organizerRole === "not_have_organizer") {
       return []
     }
