@@ -126,21 +126,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const registerOrganization = async (orgData: OrganizerRegisterRequest) => {
     setIsLoading(true)
     try {
+      console.log("registerOrganization called with:", orgData)
+      console.log("Current user before update:", user)
+
       const response = await organizersService.register(orgData)
+      console.log("organizersService.register response:", response)
 
       // Обновляем роль пользователя
       if (user) {
-        const updatedUser = {
+        const updatedUser: User = {
           ...user,
-          organizerRole: orgData.role as OrganizerRole,
+          organizerRole: response.role as OrganizerRole,
           userRole: "admin" as UserRole, // При регистрации организации пользователь становится админом
         }
 
-        console.log("Updated user object after org register:", updatedUser) // Для отладки
+        console.log("Updated user object after org register:", updatedUser)
 
         setUser(updatedUser)
         localStorage.setItem("user", JSON.stringify(updatedUser))
+
+        console.log("User state updated and saved to localStorage")
+      } else {
+        console.error("No user found when trying to update after organization registration")
+
+        // Если пользователя нет, создаем его на основе данных из localStorage
+        const storedUser = localStorage.getItem("user")
+        if (storedUser) {
+          try {
+            const userData = JSON.parse(storedUser)
+            const newUser: User = {
+              ...userData,
+              organizerRole: orgData.role as OrganizerRole,
+              userRole: "admin" as UserRole,
+            }
+
+            console.log("Created new user from localStorage:", newUser)
+            setUser(newUser)
+            localStorage.setItem("user", JSON.stringify(newUser))
+          } catch (error) {
+            console.error("Error parsing stored user data:", error)
+          }
+        }
       }
+    } catch (error) {
+      console.error("Error in registerOrganization:", error)
+      throw error
     } finally {
       setIsLoading(false)
     }

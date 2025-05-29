@@ -13,8 +13,6 @@ import { Icons } from "@/components/icons"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/contexts/auth-context"
-import { ErrorAlert } from "@/components/ui/error-alert"
-import { ApiClientError } from "@/lib/api-client"
 import type { OrganizerRegisterRequest } from "@/lib/api-types"
 
 const formSchema = z.object({
@@ -65,19 +63,17 @@ export function CompanyRegistrationForm() {
         bank_details: values.bank_details,
       }
 
-      const response = await registerOrganization(orgData)
-
-      // Перенаправляем на соответствующий дашборд на основе роли организации
+      console.log("Calling registerOrganization with:", orgData) // Добавляем лог
+      await registerOrganization(orgData)
+      console.log("registerOrganization completed successfully") // Добавляем лог
       router.push("/dashboard")
     } catch (err) {
-      if (err instanceof ApiClientError) {
-        setError(err.message)
-      } else if (err instanceof Error) {
+      console.error("Error in registerOrganization:", err) // Добавляем лог ошибки
+      if (err instanceof Error) {
         setError(err.message)
       } else {
         setError("Ошибка регистрации организации. Попробуйте еще раз.")
       }
-      console.error(err)
     } finally {
       setIsLoading(false)
     }
@@ -160,14 +156,7 @@ export function CompanyRegistrationForm() {
               </FormItem>
             )}
           />
-          {error && (
-            <ErrorAlert
-              title="Ошибка регистрации"
-              message={error}
-              variant="destructive"
-              onClose={() => setError(null)}
-            />
-          )}
+          {error && <div className="text-sm font-medium text-destructive">{error}</div>}
           <Button disabled={isLoading} className="w-full">
             {isLoading && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />}
             Зарегистрировать компанию
