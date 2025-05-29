@@ -1,23 +1,20 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Overview } from "@/components/overview"
-import { RecentDeliveries } from "@/components/recent-deliveries"
-import { useAuth } from "@/contexts/auth-context"
 import { CompanyDashboard } from "@/components/company-dashboard"
 import { SupplierDashboard } from "@/components/supplier-dashboard"
 import { NotOrganizerDashboard } from "@/components/not-organizer-dashboard"
-import { useEffect } from "react"
+import { Overview } from "@/components/overview"
+import { RecentDeliveries } from "@/components/recent-deliveries"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function DashboardPage() {
-  const { role, user } = useAuth()
+  const { user } = useAuth()
 
-  // Отладочная информация
-  useEffect(() => {
-    console.log("Dashboard - Current role:", role)
-    console.log("Dashboard - Current user:", user)
-    console.log("Dashboard - Role type:", typeof role)
-  }, [role, user])
+  // Если у пользователя нет организации, показываем страницу с кодом привязки
+  if (user?.organizerRole === "not_have_organizer") {
+    return <NotOrganizerDashboard />
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -25,31 +22,15 @@ export default function DashboardPage() {
         <h2 className="text-3xl font-bold tracking-tight">Панель управления</h2>
       </div>
 
-      {/* Временная отладочная информация */}
-      <div className="bg-gray-100 p-4 rounded text-sm">
-        <p>
-          <strong>Debug info:</strong>
-        </p>
-        <p>Role: {role || "null"}</p>
-        <p>Role type: {typeof role}</p>
-        <p>User: {user ? JSON.stringify(user, null, 2) : "null"}</p>
-      </div>
-
-      {role === "company" ? (
+      {/* Отображаем соответствующий дашборд в зависимости от роли организации */}
+      {user?.organizerRole === "company" ? (
         <CompanyDashboard />
-      ) : role === "supplier" ? (
+      ) : user?.organizerRole === "supplier" ? (
         <SupplierDashboard />
-      ) : role === "not_have_organizer" ? (
-        <NotOrganizerDashboard />
-      ) : (
-        <div className="text-center p-8">
-          <p>Пожалуйста, войдите в систему для доступа к панели управления.</p>
-          <p className="text-sm text-gray-500 mt-2">Текущая роль: {role || "не определена"}</p>
-        </div>
-      )}
+      ) : null}
 
-      {/* Показываем карточки только для аутентифицированных пользователей с организацией */}
-      {(role === "company" || role === "supplier") && (
+      {/* Отображаем карточки только для аутентифицированных пользователей */}
+      {user && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
           <Card className="col-span-4">
             <CardHeader>

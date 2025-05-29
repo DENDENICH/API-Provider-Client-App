@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Command,
+  Copy,
   CreditCard,
   FileText,
   HelpCircle,
@@ -53,6 +54,7 @@ export const Icons = {
   fileText: FileText,
   image: ImageIcon,
   check: Check,
+  copy: Copy,
   gitHub: ({ ...props }: LucideProps) => (
     <svg
       aria-hidden="true"

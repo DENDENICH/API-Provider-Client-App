@@ -1,4 +1,5 @@
-const API_BASE_URL = "http://localhost:7654"
+// Экспортируем константу API_BASE_URL
+export const API_BASE_URL = "http://localhost:7654"
 
 export const API_ENDPOINTS = {
   // Аутентификация

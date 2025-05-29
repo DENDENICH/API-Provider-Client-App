@@ -1,143 +1,174 @@
 import { apiClient } from "./api-client"
-import { API_ENDPOINTS } from "./api-config"
+import { API_BASE_URL } from "./api-config"
 import type {
   UserRegisterRequest,
   UserLoginRequest,
-  AuthResponse,
+  AuthResponseAfterRegister,
+  AuthResponseAfterLogin,
   OrganizerRegisterRequest,
-  ProductRequest,
-  ProductResponse,
+  OrganizerResponse,
   ProductsResponse,
-  SupplyCreateRequest,
-  SupplyResponse,
+  ProductResponse,
+  ProductRequest,
   SuppliesResponse,
+  SupplyResponse,
+  SupplyCreateRequest,
   SupplyStatusUpdate,
   SupplyAssembleCancelled,
   SuppliersResponse,
   SupplierResponse,
-  Expenses,
-  Expense,
   UsersCompanyWithUserInfo,
   LinkCodeResponse,
-  AuthResponseAfterLogin,
+  Expenses,
+  Expense,
 } from "./api-types"
 
-// Сервисы аутентификации
+// Сервис для работы с аутентификацией
 export const authService = {
-  async register(data: UserRegisterRequest): Promise<AuthResponse> {
-    return apiClient.post<AuthResponse>(API_ENDPOINTS.AUTH_REGISTER, data)
+  // Регистрация пользователя
+  register: async (userData: UserRegisterRequest): Promise<AuthResponseAfterRegister> => {
+    return apiClient.post<AuthResponseAfterRegister>(`${API_BASE_URL}/auth/register`, userData)
   },
 
-  async login(data: UserLoginRequest): Promise<AuthResponseAfterLogin> {
-    return apiClient.post<AuthResponseAfterLogin>(API_ENDPOINTS.AUTH_LOGIN, data)
-  },
-}
-
-// Сервисы пользователей
-export const usersService = {
-  async getCompanyUsers(): Promise<UsersCompanyWithUserInfo> {
-    return apiClient.get<UsersCompanyWithUserInfo>(API_ENDPOINTS.USERS_COMPANY)
-  },
-
-  async getLinkCode(): Promise<LinkCodeResponse> {
-    return apiClient.get<LinkCodeResponse>(API_ENDPOINTS.LINK_CODE)
-  },
-
-  async linkUserToCompany(linkCode: number, role: "manager" | "employee"): Promise<void> {
-    return apiClient.post<void>(API_ENDPOINTS.USERS_COMPANY, { link_code: linkCode, role })
-  },
-
-  async removeUserFromCompany(userId?: number): Promise<void> {
-    const url = userId ? `${API_ENDPOINTS.USERS_COMPANY}?user_id=${userId}` : API_ENDPOINTS.USERS_COMPANY
-    return apiClient.delete<void>(url)
+  // Авторизация пользователя
+  login: async (loginData: UserLoginRequest): Promise<AuthResponseAfterLogin> => {
+    return apiClient.post<AuthResponseAfterLogin>(`${API_BASE_URL}/auth/login`, loginData)
   },
 }
 
-// Сервисы организаций
+// Сервис для работы с организациями
 export const organizersService = {
-  async register(data: OrganizerRegisterRequest): Promise<void> {
-    return apiClient.post<void>(API_ENDPOINTS.ORGANIZERS_REGISTER, data)
+  // Регистрация организации
+  register: async (orgData: OrganizerRegisterRequest): Promise<OrganizerResponse> => {
+    return apiClient.post<OrganizerResponse>(`${API_BASE_URL}/organizers/register`, orgData)
   },
 }
 
-// Сервисы товаров
-export const productsService = {
-  async create(data: ProductRequest): Promise<void> {
-    return apiClient.post<void>(API_ENDPOINTS.PRODUCTS, data)
+// Сервис для работы с пользователями
+export const usersService = {
+  // Получение всех сотрудников организации
+  getCompanyUsers: async (): Promise<UsersCompanyWithUserInfo> => {
+    return apiClient.get<UsersCompanyWithUserInfo>(`${API_BASE_URL}/users/company`)
   },
 
-  async getAll(supplierId?: number, addQuantity?: boolean): Promise<ProductsResponse> {
-    const params = new URLSearchParams()
-    if (supplierId) params.append("supplier_id", supplierId.toString())
-    if (addQuantity) params.append("add_quantity", "true")
+  // Привязка пользователя к организации
+  addUserByLinkCode: async (linkCode: number, role: "manager" | "employee"): Promise<void> => {
+    return apiClient.post<void>(`${API_BASE_URL}/users/company`, { link_code: linkCode, role })
+  },
 
-    const url = params.toString() ? `${API_ENDPOINTS.PRODUCTS}?${params}` : API_ENDPOINTS.PRODUCTS
+  // Удаление пользователя из организации
+  removeUser: async (userId: number): Promise<void> => {
+    return apiClient.delete<void>(`${API_BASE_URL}/users/company?user_id=${userId}`)
+  },
+
+  // Получение кода привязки
+  getLinkCode: async (): Promise<LinkCodeResponse> => {
+    return apiClient.get<LinkCodeResponse>(`${API_BASE_URL}/linkcode`)
+  },
+}
+
+// Сервис для работы с товарами
+export const productsService = {
+  // Получение списка товаров
+  getProducts: async (supplierId?: number, addQuantity?: boolean): Promise<ProductsResponse> => {
+    let url = `${API_BASE_URL}/products`
+    const params = []
+
+    if (supplierId) params.push(`supplier_id=${supplierId}`)
+    if (addQuantity) params.push(`add_quantity=${addQuantity}`)
+
+    if (params.length > 0) {
+      url += `?${params.join("&")}`
+    }
+
     return apiClient.get<ProductsResponse>(url)
   },
 
-  async getById(id: number): Promise<ProductResponse> {
-    return apiClient.get<ProductResponse>(API_ENDPOINTS.PRODUCT_BY_ID(id))
+  // Получение информации о товаре
+  getProduct: async (productId: number): Promise<ProductResponse> => {
+    return apiClient.get<ProductResponse>(`${API_BASE_URL}/products/${productId}`)
   },
 
-  async update(id: number, data: ProductResponse): Promise<ProductResponse> {
-    return apiClient.put<ProductResponse>(API_ENDPOINTS.PRODUCT_BY_ID(id), data)
+  // Добавление нового товара
+  addProduct: async (productData: ProductRequest): Promise<void> => {
+    return apiClient.post<void>(`${API_BASE_URL}/products`, productData)
+  },
+
+  // Обновление информации о товаре
+  updateProduct: async (productId: number, productData: ProductResponse): Promise<ProductResponse> => {
+    return apiClient.put<ProductResponse>(`${API_BASE_URL}/products/${productId}`, productData)
   },
 }
 
-// Сервисы поставок
+// Сервис для работы с поставками
 export const suppliesService = {
-  async getAll(isWaitConfirm?: boolean): Promise<SuppliesResponse> {
-    const params = isWaitConfirm ? "?is_wait_confirm=true" : ""
-    return apiClient.get<SuppliesResponse>(`${API_ENDPOINTS.SUPPLIES}${params}`)
+  // Получение списка поставок
+  getSupplies: async (isWaitConfirm?: boolean): Promise<SuppliesResponse> => {
+    let url = `${API_BASE_URL}/supplies`
+    if (isWaitConfirm !== undefined) {
+      url += `?is_wait_confirm=${isWaitConfirm}`
+    }
+    return apiClient.get<SuppliesResponse>(url)
   },
 
-  async create(data: SupplyCreateRequest): Promise<SupplyResponse> {
-    return apiClient.post<SupplyResponse>(API_ENDPOINTS.SUPPLIES, data)
+  // Получение информации о поставке
+  getSupply: async (supplyId: number): Promise<SupplyResponse> => {
+    return apiClient.get<SupplyResponse>(`${API_BASE_URL}/supplies/${supplyId}`)
   },
 
-  async getById(id: number): Promise<SupplyResponse> {
-    return apiClient.get<SupplyResponse>(API_ENDPOINTS.SUPPLY_BY_ID(id))
+  // Создание новой поставки
+  createSupply: async (supplyData: SupplyCreateRequest): Promise<SupplyResponse> => {
+    return apiClient.post<SupplyResponse>(`${API_BASE_URL}/supplies`, supplyData)
   },
 
-  async updateStatus(id: number, data: SupplyStatusUpdate): Promise<SupplyResponse> {
-    return apiClient.patch<SupplyResponse>(API_ENDPOINTS.SUPPLY_STATUS(id), data)
+  // Принятие/отклонение поставки
+  assembleOrCancelSupply: async (supplyId: number, data: SupplyAssembleCancelled): Promise<SupplyResponse> => {
+    return apiClient.patch<SupplyResponse>(`${API_BASE_URL}/supplies/${supplyId}`, data)
   },
 
-  async acceptOrCancel(id: number, data: SupplyAssembleCancelled): Promise<SupplyResponse> {
-    return apiClient.patch<SupplyResponse>(API_ENDPOINTS.SUPPLY_BY_ID(id), data)
+  // Изменение статуса поставки
+  updateSupplyStatus: async (supplyId: number, statusData: SupplyStatusUpdate): Promise<SupplyResponse> => {
+    return apiClient.patch<SupplyResponse>(`${API_BASE_URL}/supplies/${supplyId}/status`, statusData)
   },
 }
 
-// Сервисы поставщиков
+// Сервис для работы с поставщиками
 export const suppliersService = {
-  async getAll(): Promise<SuppliersResponse> {
-    return apiClient.get<SuppliersResponse>(API_ENDPOINTS.SUPPLIERS)
+  // Получение списка поставщиков
+  getSuppliers: async (): Promise<SuppliersResponse> => {
+    return apiClient.get<SuppliersResponse>(`${API_BASE_URL}/suppliers`)
   },
 
-  async getByInn(inn: number): Promise<SupplierResponse> {
-    return apiClient.get<SupplierResponse>(API_ENDPOINTS.SUPPLIER_BY_INN(inn))
+  // Получение поставщика по ИНН
+  getSupplierByInn: async (inn: number): Promise<SupplierResponse> => {
+    return apiClient.get<SupplierResponse>(`${API_BASE_URL}/suppliers/${inn}`)
   },
 
-  async addToContacts(id: number): Promise<void> {
-    return apiClient.post<void>(API_ENDPOINTS.SUPPLIER_BY_ID(id), {})
+  // Добавление поставщика в контакты
+  addSupplier: async (supplierId: number): Promise<void> => {
+    return apiClient.post<void>(`${API_BASE_URL}/suppliers/${supplierId}`)
   },
 
-  async removeFromContacts(id: number): Promise<void> {
-    return apiClient.delete<void>(API_ENDPOINTS.SUPPLIER_BY_ID(id))
+  // Удаление поставщика из контактов
+  removeSupplier: async (supplierId: number): Promise<OrganizerResponse> => {
+    return apiClient.delete<OrganizerResponse>(`${API_BASE_URL}/suppliers/${supplierId}`)
   },
 }
 
-// Сервисы расходов склада
+// Сервис для работы с расходами
 export const expensesService = {
-  async getAll(): Promise<Expenses> {
-    return apiClient.get<Expenses>(API_ENDPOINTS.EXPENSES)
+  // Получение всех расходов
+  getExpenses: async (): Promise<Expenses> => {
+    return apiClient.get<Expenses>(`${API_BASE_URL}/expenses/`)
   },
 
-  async updateQuantity(id: number, quantity: number): Promise<Expense> {
-    return apiClient.patch<Expense>(API_ENDPOINTS.EXPENSE_BY_ID(id), { quantity })
+  // Обновление количества расхода
+  updateExpenseQuantity: async (expenseId: number, quantity: number): Promise<Expense> => {
+    return apiClient.patch<Expense>(`${API_BASE_URL}/expenses/${expenseId}/`, { quantity })
   },
 
-  async delete(id: number): Promise<void> {
-    return apiClient.delete<void>(API_ENDPOINTS.EXPENSE_BY_ID(id))
+  // Удаление расхода
+  deleteExpense: async (expenseId: number): Promise<void> => {
+    return apiClient.delete<void>(`${API_BASE_URL}/expenses/${expenseId}/`)
   },
 }
