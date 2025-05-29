@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: email.split("@")[0],
         email,
         organizerRole: response.role_organizer,
-        userRole: response.user_type as UserRole, // Явное приведение типа
+        userRole: response.user_role as UserRole, // Явное приведение типа
       }
 
       console.log("Created user object:", newUser) // Для отладки
