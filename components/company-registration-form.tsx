@@ -63,12 +63,34 @@ export function CompanyRegistrationForm() {
         bank_details: values.bank_details,
       }
 
-      console.log("Calling registerOrganization with:", orgData) // Добавляем лог
+      console.log("Calling registerOrganization with:", orgData)
+
+      // Создаем базовый объект пользователя в localStorage, если его нет
+      const storedUser = localStorage.getItem("user")
+      if (!storedUser) {
+        // Получаем email из localStorage или используем временный
+        const email = localStorage.getItem("registered_email") || "user@example.com"
+        const name = email.split("@")[0]
+
+        const newUser = {
+          id: "user-1",
+          name,
+          email,
+          organizerRole: "not_have_organizer",
+          userRole: "admin",
+        }
+
+        console.log("Creating initial user object:", newUser)
+        localStorage.setItem("user", JSON.stringify(newUser))
+      }
+
       await registerOrganization(orgData)
-      console.log("registerOrganization completed successfully") // Добавляем лог
-      router.push("/dashboard")
+      console.log("registerOrganization completed successfully")
+
+      // Перезагрузка страницы для применения изменений
+      window.location.href = "/dashboard"
     } catch (err) {
-      console.error("Error in registerOrganization:", err) // Добавляем лог ошибки
+      console.error("Error in registerOrganization:", err)
       if (err instanceof Error) {
         setError(err.message)
       } else {
