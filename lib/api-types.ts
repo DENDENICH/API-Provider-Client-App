@@ -116,7 +116,7 @@ export interface ProductsResponse {
 }
 
 // Типы для поставок (ОБНОВЛЕНО)
-export type SupplyStatus = "assembled" | "in_delivery" | "adopted" | "delivered" | "cancelled"
+export type SupplyStatus = "in_processing" | "assembled" | "in_delivery" | "adopted" | "delivered" | "cancelled"
 
 export interface SupplyCreateRequest {
   supplier_id: number

@@ -15,6 +15,10 @@ function StatusBadge({ status }: { status: SupplyResponse["status"] }) {
   let badgeClass
 
   switch (status) {
+    case "in_processing":
+      badgeContent = "В обработке"
+      badgeClass = "bg-purple-100 text-purple-800 hover:bg-purple-100"
+      break
     case "assembled":
       badgeContent = "Собран"
       badgeClass = "bg-blue-100 text-blue-800 hover:bg-blue-100"
@@ -36,7 +40,9 @@ function StatusBadge({ status }: { status: SupplyResponse["status"] }) {
       badgeClass = "bg-red-100 text-red-800 hover:bg-red-100"
       break
     default:
-      return null
+      badgeContent = status || "Неизвестно"
+      badgeClass = "bg-gray-100 text-gray-800 hover:bg-gray-100"
+      break
   }
 
   return (
