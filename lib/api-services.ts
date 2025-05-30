@@ -53,7 +53,10 @@ export const usersService = {
 
   // Привязка пользователя к организации
   addUserByLinkCode: async (linkCode: number, role: "manager" | "employee"): Promise<void> => {
-    return apiClient.post<void>(`${API_BASE_URL}/users/company`, { link_code: linkCode, role })
+    return apiClient.post<void>(`${API_BASE_URL}/users/company`, {
+      link_code: linkCode,
+      role,
+    })
   },
 
   // Удаление пользователя из организации
@@ -111,8 +114,13 @@ export const suppliesService = {
     return apiClient.get<SuppliesResponse>(url)
   },
 
-  // Получение информации о поставке
+  // Получение информации о поставке по ID
   getSupply: async (supplyId: number): Promise<SupplyResponse> => {
+    return apiClient.get<SupplyResponse>(`${API_BASE_URL}/supplies/${supplyId}`)
+  },
+
+  // Альтернативное название для совместимости
+  getSupplyById: async (supplyId: number): Promise<SupplyResponse> => {
     return apiClient.get<SupplyResponse>(`${API_BASE_URL}/supplies/${supplyId}`)
   },
 
@@ -121,12 +129,12 @@ export const suppliesService = {
     return apiClient.post<SupplyResponse>(`${API_BASE_URL}/supplies`, supplyData)
   },
 
-  // Принятие/отклонение поставки
+  // Принятие/отклонение поставки (PATCH /supplies/{supply_id})
   assembleOrCancelSupply: async (supplyId: number, data: SupplyAssembleCancelled): Promise<SupplyResponse> => {
     return apiClient.patch<SupplyResponse>(`${API_BASE_URL}/supplies/${supplyId}`, data)
   },
 
-  // Изменение статуса поставки
+  // Изменение статуса поставки (PATCH /supplies/{supply_id}/status)
   updateSupplyStatus: async (supplyId: number, statusData: SupplyStatusUpdate): Promise<SupplyResponse> => {
     return apiClient.patch<SupplyResponse>(`${API_BASE_URL}/supplies/${supplyId}/status`, statusData)
   },

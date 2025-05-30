@@ -13,26 +13,13 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Plus, Minus } from "lucide-react"
 import { Icons } from "@/components/icons"
-
-// Типы данных для товара
-type Product = {
-  id: string
-  name: string
-  category: string
-  price: number
-  available: number
-  articleNumber: string
-}
-
-// Типы данных для поставщика
-type Supplier = {
-  id: string
-  name: string
-}
+import { suppliersService, productsService, suppliesService } from "@/lib/api-services"
+import { useToast } from "@/hooks/use-toast"
+import type { SupplierResponse, ProductResponse, SupplyCreateRequest } from "@/lib/api-types"
 
 // Типы данных для выбранного товара
 type SelectedProduct = {
-  id: string
+  id: number
   quantity: number
 }
 
@@ -41,24 +28,40 @@ const formSchema = z.object({
   supplier: z.string({
     required_error: "Выберите поставщика",
   }),
-  address: z.string({
-    required_error: "Введите адрес доставки",
-  }),
+  address: z.string().min(1, "Введите адрес доставки"),
   selectedProducts: z
     .array(
       z.object({
-        id: z.string(),
+        id: z.number(),
         quantity: z.number().min(1, "Количество должно быть больше 0"),
       }),
     )
     .min(1, "Выберите хотя бы один товар"),
 })
 
+// Функция для преобразования категории в читаемый вид
+const getCategoryDisplayName = (category: string): string => {
+  const categoryMap: Record<string, string> = {
+    hair_coloring: "Окрашивание волос",
+    hair_care: "Уход за волосами",
+    hair_styling: "Укладка волос",
+    consumables: "Расходные материалы",
+    perming: "Химическая завивка",
+    eyebrows: "Брови",
+    manicure_and_pedicure: "Маникюр и педикюр",
+    tools_and_equipment: "Инструменты и оборудование",
+  }
+  return categoryMap[category] || category
+}
+
 export function CreateDeliveryForm() {
   const router = useRouter()
+  const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [suppliers, setSuppliers] = useState<Supplier[]>([])
-  const [products, setProducts] = useState<Product[]>([])
+  const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false)
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false)
+  const [suppliers, setSuppliers] = useState<SupplierResponse[]>([])
+  const [products, setProducts] = useState<ProductResponse[]>([])
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([])
   const [selectedSupplier, setSelectedSupplier] = useState<string>("")
   const [totalAmount, setTotalAmount] = useState<number>(0)
@@ -73,98 +76,59 @@ export function CreateDeliveryForm() {
     },
   })
 
-  // Загрузка списка поставщиков (имитация)
+  // Загрузка списка поставщиков при монтировании компонента
   useEffect(() => {
-    // В реальном приложении здесь будет запрос к API
-    const mockSuppliers: Supplier[] = [
-      { id: "1", name: "L'Oréal Professional" },
-      { id: "2", name: "Clarins" },
-      { id: "3", name: "Gehwol" },
-      { id: "4", name: "Janssen Cosmetics" },
-      { id: "5", name: "Kérastase" },
-      { id: "6", name: "Dermalogica" },
-      { id: "7", name: "Babor" },
-    ]
-    setSuppliers(mockSuppliers)
-  }, [])
+    const fetchSuppliers = async () => {
+      setIsLoadingSuppliers(true)
+      try {
+        console.log("Fetching suppliers...")
+        const response = await suppliersService.getSuppliers()
+        console.log("Suppliers response:", response)
+        setSuppliers(response.organizers || [])
+      } catch (error) {
+        console.error("Error fetching suppliers:", error)
+        toast({
+          title: "Ошибка",
+          description: "Не удалось загрузить список поставщиков",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingSuppliers(false)
+      }
+    }
+
+    fetchSuppliers()
+  }, [toast])
 
   // Загрузка списка товаров при выборе поставщика
   useEffect(() => {
     if (selectedSupplier) {
-      // В реальном приложении здесь будет запрос к API с фильтрацией по поставщику
-      const mockProducts: Product[] = [
-        {
-          id: "1",
-          name: "Шампунь для окрашенных волос",
-          category: "Уход за волосами",
-          price: 1200,
-          available: 45,
-          articleNumber: "SH-1001",
-        },
-        {
-          id: "2",
-          name: "Маска для волос",
-          category: "Уход за волосами",
-          price: 1800,
-          available: 30,
-          articleNumber: "MH-2002",
-        },
-        {
-          id: "3",
-          name: "Крем для лица",
-          category: "Уход за кожей",
-          price: 2500,
-          available: 20,
-          articleNumber: "CF-3003",
-        },
-        {
-          id: "4",
-          name: "Сыворотка антивозрастная",
-          category: "Уход за кожей",
-          price: 3200,
-          available: 15,
-          articleNumber: "SA-4004",
-        },
-        {
-          id: "5",
-          name: "Крем для ног",
-          category: "Маникюр и педикюр",
-          price: 950,
-          available: 50,
-          articleNumber: "CF-5005",
-        },
-        {
-          id: "6",
-          name: "Масло для ногтей",
-          category: "Маникюр и педикюр",
-          price: 750,
-          available: 40,
-          articleNumber: "NO-6006",
-        },
-        {
-          id: "7",
-          name: "Пилинг для лица",
-          category: "Уход за кожей",
-          price: 1900,
-          available: 25,
-          articleNumber: "PF-7007",
-        },
-        {
-          id: "8",
-          name: "Альгинатная маска",
-          category: "Уход за кожей",
-          price: 1500,
-          available: 35,
-          articleNumber: "AM-8008",
-        },
-      ]
-      setProducts(mockProducts)
-      // Сбрасываем выбранные товары при смене поставщика
-      setSelectedProducts([])
-      form.setValue("selectedProducts", [])
-      setTotalAmount(0)
+      const fetchProducts = async () => {
+        setIsLoadingProducts(true)
+        try {
+          console.log("Fetching products for supplier:", selectedSupplier)
+          const response = await productsService.getProducts(Number.parseInt(selectedSupplier), true)
+          console.log("Products response:", response)
+          setProducts(response.products || [])
+          // Сбрасываем выбранные товары при смене поставщика
+          setSelectedProducts([])
+          form.setValue("selectedProducts", [])
+          setTotalAmount(0)
+        } catch (error) {
+          console.error("Error fetching products:", error)
+          toast({
+            title: "Ошибка",
+            description: "Не удалось загрузить список товаров",
+            variant: "destructive",
+          })
+        } finally {
+          setIsLoadingProducts(false)
+        }
+      }
+
+      fetchProducts()
     }
-  }, [selectedSupplier, form])
+  }, [selectedSupplier, form, toast])
 
   // Обновление общей суммы при изменении выбранных товаров
   useEffect(() => {
@@ -180,12 +144,13 @@ export function CreateDeliveryForm() {
 
   // Обработчик выбора поставщика
   const handleSupplierChange = (value: string) => {
+    console.log("Selected supplier:", value)
     setSelectedSupplier(value)
     form.setValue("supplier", value)
   }
 
   // Обработчик выбора товара
-  const handleProductSelect = (productId: string, isChecked: boolean) => {
+  const handleProductSelect = (productId: number, isChecked: boolean) => {
     if (isChecked) {
       // Добавляем товар в список выбранных
       const newSelectedProduct = { id: productId, quantity: 1 }
@@ -201,13 +166,14 @@ export function CreateDeliveryForm() {
   }
 
   // Обработчик изменения количества товара
-  const handleQuantityChange = (productId: string, change: number) => {
+  const handleQuantityChange = (productId: number, change: number) => {
     const updatedSelectedProducts = selectedProducts.map((product) => {
       if (product.id === productId) {
         const selectedProduct = products.find((p) => p.id === productId)
         if (selectedProduct) {
           // Проверяем, что новое количество не меньше 1 и не больше доступного
-          const newQuantity = Math.max(1, Math.min(product.quantity + change, selectedProduct.available))
+          const maxQuantity = selectedProduct.quantity || 999
+          const newQuantity = Math.max(1, Math.min(product.quantity + change, maxQuantity))
           return { ...product, quantity: newQuantity }
         }
       }
@@ -218,46 +184,70 @@ export function CreateDeliveryForm() {
   }
 
   // Проверка, выбран ли товар
-  const isProductSelected = (productId: string) => {
+  const isProductSelected = (productId: number) => {
     return selectedProducts.some((p) => p.id === productId)
   }
 
   // Получение количества выбранного товара
-  const getSelectedQuantity = (productId: string) => {
+  const getSelectedQuantity = (productId: number) => {
     const selectedProduct = selectedProducts.find((p) => p.id === productId)
     return selectedProduct ? selectedProduct.quantity : 0
   }
 
   // Обработчик отправки формы
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    console.log("Form submission started with values:", values)
+
+    // Дополнительная валидация
+    if (!values.address.trim()) {
+      toast({
+        title: "Ошибка валидации",
+        description: "Введите адрес доставки",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (values.selectedProducts.length === 0) {
+      toast({
+        title: "Ошибка валидации",
+        description: "Выберите хотя бы один товар",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsSubmitting(true)
     try {
-      // Имитация задержки создания поставки
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
       // Подготовка данных для отправки
-      const deliveryData = {
-        supplier: suppliers.find((s) => s.id === values.supplier)?.name,
-        address: values.address,
-        products: values.selectedProducts.map((sp) => {
-          const product = products.find((p) => p.id === sp.id)
-          return {
-            id: sp.id,
-            name: product?.name,
-            quantity: sp.quantity,
-            price: product?.price,
-            total: (product?.price || 0) * sp.quantity,
-          }
-        }),
-        totalAmount,
+      const supplyData: SupplyCreateRequest = {
+        supplier_id: Number.parseInt(values.supplier),
+        delivery_address: values.address,
+        total_price: totalAmount,
+        supply_products: values.selectedProducts.map((sp) => ({
+          product_id: sp.id,
+          quantity: sp.quantity,
+        })),
       }
 
-      console.log("Данные поставки:", deliveryData)
-      alert("Поставка успешно создана")
+      console.log("Sending supply data:", supplyData)
+
+      const response = await suppliesService.createSupply(supplyData)
+      console.log("Supply created successfully:", response)
+
+      toast({
+        title: "Успех",
+        description: "Поставка успешно создана",
+      })
+
       router.push("/deliveries")
     } catch (error) {
-      console.error("Ошибка при создании поставки:", error)
-      alert("Произошла ошибка при создании поставки")
+      console.error("Error creating supply:", error)
+      toast({
+        title: "Ошибка",
+        description: "Произошла ошибка при создании поставки",
+        variant: "destructive",
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -276,15 +266,19 @@ export function CreateDeliveryForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Поставщик</FormLabel>
-                    <Select onValueChange={handleSupplierChange} defaultValue={field.value}>
+                    <Select
+                      onValueChange={handleSupplierChange}
+                      defaultValue={field.value}
+                      disabled={isLoadingSuppliers}
+                    >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Выберите поставщика" />
+                          <SelectValue placeholder={isLoadingSuppliers ? "Загрузка..." : "Выберите поставщика"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {suppliers.map((supplier) => (
-                          <SelectItem key={supplier.id} value={supplier.id}>
+                          <SelectItem key={supplier.id} value={supplier.id.toString()}>
                             {supplier.name}
                           </SelectItem>
                         ))}
@@ -300,61 +294,77 @@ export function CreateDeliveryForm() {
               {selectedSupplier && (
                 <div className="space-y-4">
                   <FormLabel>Товары</FormLabel>
-                  <div className="border rounded-md">
-                    <div className="grid grid-cols-12 gap-2 p-3 bg-muted font-medium text-sm">
-                      <div className="col-span-1"></div>
-                      <div className="col-span-2">Артикул</div>
-                      <div className="col-span-3">Название товара</div>
-                      <div className="col-span-2">Категория</div>
-                      <div className="col-span-2">Цена за ед.</div>
-                      <div className="col-span-2">Количество</div>
+                  {isLoadingProducts ? (
+                    <div className="flex items-center justify-center p-8">
+                      <Icons.spinner className="h-6 w-6 animate-spin" />
+                      <span className="ml-2">Загрузка товаров...</span>
                     </div>
-                    <div className="divide-y">
-                      {products.map((product) => (
-                        <div key={product.id} className="grid grid-cols-12 gap-2 p-3 items-center">
-                          <div className="col-span-1">
-                            <Checkbox
-                              checked={isProductSelected(product.id)}
-                              onCheckedChange={(checked) => handleProductSelect(product.id, checked as boolean)}
-                            />
+                  ) : products.length > 0 ? (
+                    <div className="border rounded-md">
+                      <div className="grid grid-cols-12 gap-2 p-3 bg-muted font-medium text-sm">
+                        <div className="col-span-1"></div>
+                        <div className="col-span-2">Артикул</div>
+                        <div className="col-span-3">Название товара</div>
+                        <div className="col-span-2">Категория</div>
+                        <div className="col-span-2">Цена за ед.</div>
+                        <div className="col-span-2">Количество</div>
+                      </div>
+                      <div className="divide-y">
+                        {products.map((product) => (
+                          <div key={product.id} className="grid grid-cols-12 gap-2 p-3 items-center">
+                            <div className="col-span-1">
+                              <Checkbox
+                                checked={isProductSelected(product.id)}
+                                onCheckedChange={(checked) => handleProductSelect(product.id, checked as boolean)}
+                              />
+                            </div>
+                            <div className="col-span-2 text-sm">{product.article}</div>
+                            <div className="col-span-3 font-medium">{product.name}</div>
+                            <div className="col-span-2 text-sm text-muted-foreground">
+                              {getCategoryDisplayName(product.category)}
+                            </div>
+                            <div className="col-span-2 text-sm">{product.price.toLocaleString()} ₽</div>
+                            <div className="col-span-2 flex items-center space-x-2">
+                              {isProductSelected(product.id) ? (
+                                <>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => handleQuantityChange(product.id, -1)}
+                                    disabled={getSelectedQuantity(product.id) <= 1}
+                                  >
+                                    <Minus className="h-4 w-4" />
+                                  </Button>
+                                  <span className="w-8 text-center">{getSelectedQuantity(product.id)}</span>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => handleQuantityChange(product.id, 1)}
+                                    disabled={
+                                      product.quantity !== null &&
+                                      getSelectedQuantity(product.id) >= (product.quantity || 0)
+                                    }
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">Не выбрано</span>
+                              )}
+                            </div>
                           </div>
-                          <div className="col-span-2 text-sm">{product.articleNumber}</div>
-                          <div className="col-span-3 font-medium">{product.name}</div>
-                          <div className="col-span-2 text-sm text-muted-foreground">{product.category}</div>
-                          <div className="col-span-2 text-sm">{product.price.toLocaleString()} ₽</div>
-                          <div className="col-span-2 flex items-center space-x-2">
-                            {isProductSelected(product.id) ? (
-                              <>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handleQuantityChange(product.id, -1)}
-                                  disabled={getSelectedQuantity(product.id) <= 1}
-                                >
-                                  <Minus className="h-4 w-4" />
-                                </Button>
-                                <span className="w-8 text-center">{getSelectedQuantity(product.id)}</span>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handleQuantityChange(product.id, 1)}
-                                  disabled={getSelectedQuantity(product.id) >= product.available}
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <span className="text-sm text-muted-foreground">Не выбрано</span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="text-center p-8 text-muted-foreground">
+                      У выбранного поставщика нет доступных товаров
+                    </div>
+                  )}
                   {form.formState.errors.selectedProducts && (
                     <p className="text-sm font-medium text-destructive">
                       {form.formState.errors.selectedProducts.message}
@@ -394,7 +404,7 @@ export function CreateDeliveryForm() {
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isLoadingSuppliers || isLoadingProducts}
                 style={{
                   backgroundColor: "#f97316",
                   color: "white",

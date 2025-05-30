@@ -12,6 +12,9 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Icons } from "@/components/icons"
 import { Textarea } from "@/components/ui/textarea"
+import { productsService } from "@/lib/api-services"
+import type { ProductResponse, ProductUpdate } from "@/lib/api-types"
+import { useToast } from "@/hooks/use-toast"
 
 // Компонент для ввода цены с форматированием
 const PriceInput = React.forwardRef<
@@ -38,7 +41,10 @@ const PriceInput = React.forwardRef<
       }
     }
 
-    // Форматируем цену
+    // Обновляем значение в форме (только числовое значение)
+    onValueChange(value)
+
+    // Форматируем для отображения
     let formattedValue = value
     if (value) {
       // Если нет точки, добавляем .00
@@ -54,9 +60,6 @@ const PriceInput = React.forwardRef<
       formattedValue = formattedValue + " ₽"
     }
 
-    // Обновляем значение в форме
-    onValueChange(value)
-
     // Устанавливаем отформатированное значение в поле ввода
     e.target.value = formattedValue
   }
@@ -67,21 +70,51 @@ PriceInput.displayName = "PriceInput"
 
 // Схема валидации формы с использованием Zod
 const formSchema = z.object({
-  name: z.string().min(2, {
-    message: "Название должно содержать не менее 2 символов",
-  }),
-  category: z.string({
-    required_error: "Выберите категорию",
-  }),
-  price: z.string().min(1, {
-    message: "Введите цену",
-  }),
+  name: z
+    .string()
+    .min(1, {
+      message: "Название обязательно для заполнения",
+    })
+    .min(2, {
+      message: "Название должно содержать не менее 2 символов",
+    })
+    .refine((val) => val.trim().length > 0, {
+      message: "Название не может состоять только из пробелов",
+    }),
+  category: z
+    .string({
+      required_error: "Выберите категорию",
+    })
+    .min(1, {
+      message: "Категория обязательна для заполнения",
+    })
+    .refine((val) => val !== "", {
+      message: "Необходимо выбрать категорию",
+    }),
+  price: z
+    .string()
+    .min(1, {
+      message: "Цена обязательна для заполнения",
+    })
+    .refine((val) => val.trim() !== "", {
+      message: "Цена не может быть пустой",
+    })
+    .refine(
+      (val) => {
+        const num = Number.parseFloat(val)
+        return !isNaN(num) && num > 0
+      },
+      {
+        message: "Цена должна быть положительным числом",
+      },
+    ),
   description: z.string().optional(),
 })
 
 // Компонент формы редактирования товара
-export function EditProductForm({ product, onSuccess }: { product: any; onSuccess?: () => void }) {
+export function EditProductForm({ product, onSuccess }: { product: ProductResponse; onSuccess?: () => void }) {
   const router = useRouter()
+  const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Инициализация формы с использованием react-hook-form и zod
@@ -90,36 +123,63 @@ export function EditProductForm({ product, onSuccess }: { product: any; onSucces
     defaultValues: {
       name: product.name,
       category: product.category,
-      price: product.price,
+      price: product.price.toString(),
       description: product.description || "",
     },
   })
 
   // Обработчик отправки формы
-  // TODO: Заменить на вызов API для обновления товара
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true)
+
+    // Дополнительная проверка перед отправкой
+    if (!values.name.trim()) {
+      toast({
+        title: "Ошибка валидации",
+        description: "Название товара не может быть пустым",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!values.category) {
+      toast({
+        title: "Ошибка валидации",
+        description: "Необходимо выбрать категорию товара",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!values.price || Number.parseFloat(values.price) <= 0) {
+      toast({
+        title: "Ошибка валидации",
+        description: "Цена должна быть положительным числом",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
-      // Подготовка данных для отправки на сервер
-      const formData = new FormData()
-      formData.append("name", values.name)
-      formData.append("category", values.category)
-      formData.append("price", values.price)
-      if (values.description) formData.append("description", values.description)
+      console.log("Updating product with values:", values)
+
+      // Подготовка данных для API согласно схеме ProductUpdate
+      const updateData: ProductUpdate = {
+        name: values.name,
+        category: values.category as any, // Приведение к типу ProductCategory
+        price: Number.parseFloat(values.price),
+        description: values.description || "",
+      }
+
+      console.log("Product update data for API:", updateData)
 
       // API запрос для обновления товара
-      // Пример:
-      // const response = await fetch(`/api/products/${product.id}`, {
-      //   method: 'PUT',
-      //   body: formData
-      // })
-      // if (!response.ok) throw new Error('Ошибка при обновлении товара')
+      await productsService.updateProduct(product.id, updateData as any)
 
-      // Имитация задержки обновления товара
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      console.log("Обновленные данные товара:", values)
-      alert(`Товар "${values.name}" успешно обновлен`)
+      toast({
+        title: "Товар обновлен",
+        description: `Товар "${values.name}" успешно обновлен`,
+      })
 
       // Перенаправление после успешного обновления
       if (onSuccess) {
@@ -127,9 +187,36 @@ export function EditProductForm({ product, onSuccess }: { product: any; onSucces
       } else {
         router.push("/products/manage")
       }
-    } catch (error) {
-      console.error("Ошибка при обновлении товара:", error)
-      alert("Произошла ошибка при обновлении товара. Пожалуйста, попробуйте снова.")
+    } catch (error: any) {
+      console.error("Error updating product:", error)
+
+      let errorMessage = "Не удалось обновить товар. Попробуйте снова."
+
+      if (error.response?.status === 422) {
+        // Обработка ошибки валидации 422
+        errorMessage = "Ошибка валидации данных. Проверьте заполнение всех обязательных полей:"
+
+        // Проверяем какие поля могут быть незаполнены
+        const errors = []
+        if (!values.name.trim()) errors.push("• Название товара")
+        if (!values.category) errors.push("• Категория товара")
+        if (!values.price || Number.parseFloat(values.price) <= 0) errors.push("• Цена товара")
+
+        if (errors.length > 0) {
+          errorMessage += "\n" + errors.join("\n")
+        } else {
+          errorMessage =
+            "Проверьте правильность заполнения всех полей. Название, категория и цена обязательны для заполнения."
+        }
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+
+      toast({
+        title: "Ошибка обновления товара",
+        description: errorMessage,
+        variant: "destructive",
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -169,13 +256,14 @@ export function EditProductForm({ product, onSuccess }: { product: any; onSucces
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="Окрашивание волос">Окрашивание волос</SelectItem>
-                    <SelectItem value="Уход за волосами">Уход за волосами</SelectItem>
-                    <SelectItem value="Стайлинг для волос">Стайлинг для волос</SelectItem>
-                    <SelectItem value="Расходники">Расходники</SelectItem>
-                    <SelectItem value="Химическая завивка">Химическая завивка</SelectItem>
-                    <SelectItem value="Брови">Брови</SelectItem>
-                    <SelectItem value="Маникюр и педикюр">Маникюр и педикюр</SelectItem>
+                    <SelectItem value="hair_coloring">Окрашивание волос</SelectItem>
+                    <SelectItem value="hair_care">Уход за волосами</SelectItem>
+                    <SelectItem value="hair_styling">Стайлинг для волос</SelectItem>
+                    <SelectItem value="consumables">Расходники</SelectItem>
+                    <SelectItem value="perming">Химическая завивка</SelectItem>
+                    <SelectItem value="eyebrows">Брови</SelectItem>
+                    <SelectItem value="manicure_and_pedicure">Маникюр и педикюр</SelectItem>
+                    <SelectItem value="tools_and_equipment">Инструменты и оборудование</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />

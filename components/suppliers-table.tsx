@@ -25,135 +25,143 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { suppliersService } from "@/lib/api-services"
+import type { SupplierResponse } from "@/lib/api-types"
+import { useToast } from "@/hooks/use-toast"
+import { Icons } from "@/components/icons"
 
-// Типы данных
-type Supplier = {
-  id: string
-  name: string
-  inn: string
-  address: string
-  contractDate: string
+interface SuppliersTableProps {
+  refreshTrigger?: number
 }
 
-// Примерные данные
-const data: Supplier[] = [
-  {
-    id: "1",
-    name: "L'Oréal Professional",
-    inn: "1234567890",
-    address: "г. Москва, ул. Тверская, д. 10",
-    contractDate: "2023-01-15",
-  },
-  {
-    id: "2",
-    name: "Clarins",
-    inn: "0987654321",
-    address: "г. Москва, ул. Арбат, д. 25",
-    contractDate: "2023-02-20",
-  },
-  {
-    id: "3",
-    name: "Gehwol",
-    inn: "5678901234",
-    address: "г. Москва, ул. Ленина, д. 15",
-    contractDate: "2023-03-10",
-  },
-  {
-    id: "4",
-    name: "Janssen Cosmetics",
-    inn: "4321098765",
-    address: "г. Москва, ул. Пушкина, д. 20",
-    contractDate: "2023-04-05",
-  },
-  {
-    id: "5",
-    name: "Kérastase",
-    inn: "9876543210",
-    address: "г. Москва, ул. Гагарина, д. 30",
-    contractDate: "2023-05-12",
-  },
-]
-
-// Определение колонок
-export const columns: ColumnDef<Supplier>[] = [
-  {
-    accessorKey: "name",
-    header: ({ column }) => {
-      return (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Название
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
-    cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
-  },
-  {
-    accessorKey: "inn",
-    header: "ИНН",
-    cell: ({ row }) => <div>{row.getValue("inn")}</div>,
-  },
-  {
-    accessorKey: "address",
-    header: "Адрес",
-    cell: ({ row }) => (
-      <div className="max-w-[200px] truncate" title={row.getValue("address")}>
-        {row.getValue("address")}
-      </div>
-    ),
-  },
-  {
-    accessorKey: "contractDate",
-    header: "Дата контракта",
-    cell: ({ row }) => {
-      const date = new Date(row.getValue("contractDate"))
-      return <div>{date.toLocaleDateString("ru-RU")}</div>
-    },
-  },
-  {
-    id: "actions",
-    enableHiding: false,
-    cell: ({ row }) => {
-      const supplier = row.original
-      const [isDeleting, setIsDeleting] = React.useState(false)
-
-      const handleDeleteContract = () => {
-        setIsDeleting(true)
-        // Имитация удаления контракта
-        setTimeout(() => {
-          alert(`Контракт с поставщиком ${supplier.name} расторгнут`)
-          setIsDeleting(false)
-        }, 1000)
-      }
-
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Открыть меню</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Действия</DropdownMenuLabel>
-            <DropdownMenuItem onClick={handleDeleteContract} disabled={isDeleting} className="text-destructive">
-              {isDeleting ? "Удаление..." : "Расторгнуть контракт"}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )
-    },
-  },
-]
-
-export function SuppliersTable() {
+export function SuppliersTable({ refreshTrigger }: SuppliersTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
+  const [suppliers, setSuppliers] = React.useState<SupplierResponse[]>([])
+  const [isLoading, setIsLoading] = React.useState(true)
+  const { toast } = useToast()
+  const [isDeleting, setIsDeleting] = React.useState(false)
+  const [supplierToDelete, setSupplierToDelete] = React.useState<SupplierResponse | null>(null)
+
+  // Функция для загрузки поставщиков
+  const fetchSuppliers = React.useCallback(async () => {
+    try {
+      setIsLoading(true)
+      console.log("Fetching suppliers...")
+      const response = await suppliersService.getSuppliers()
+      console.log("Suppliers response:", response)
+      setSuppliers(response.organizers || [])
+    } catch (error) {
+      console.error("Error fetching suppliers:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить список поставщиков",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }, [toast])
+
+  // Загрузка поставщиков при монтировании компонента и при изменении refreshTrigger
+  React.useEffect(() => {
+    fetchSuppliers()
+  }, [fetchSuppliers, refreshTrigger])
+
+  // Определение колонок с обновленной функцией удаления
+  const columns: ColumnDef<SupplierResponse>[] = React.useMemo(
+    () => [
+      {
+        accessorKey: "name",
+        header: ({ column }) => {
+          return (
+            <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+              Название
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
+          )
+        },
+        cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
+      },
+      {
+        accessorKey: "inn",
+        header: "ИНН",
+        cell: ({ row }) => <div>{row.getValue("inn")}</div>,
+      },
+      {
+        accessorKey: "address",
+        header: "Адрес",
+        cell: ({ row }) => (
+          <div className="max-w-[200px] truncate" title={row.getValue("address")}>
+            {row.getValue("address")}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "bank_details",
+        header: "Банковские реквизиты",
+        cell: ({ row }) => (
+          <div className="max-w-[150px] truncate" title={row.getValue("bank_details")}>
+            {row.getValue("bank_details")}
+          </div>
+        ),
+      },
+      {
+        id: "actions",
+        enableHiding: false,
+        cell: ({ row }) => {
+          const supplier = row.original
+
+          const handleDeleteSupplier = async () => {
+            setIsDeleting(true)
+            setSupplierToDelete(supplier)
+            try {
+              await suppliersService.removeSupplier(supplier.id)
+              toast({
+                title: "Успешно",
+                description: `Контракт с поставщиком ${supplier.name} расторгнут`,
+              })
+              // Обновляем данные без перезагрузки страницы
+              await fetchSuppliers()
+            } catch (error) {
+              console.error("Error deleting supplier:", error)
+              toast({
+                title: "Ошибка",
+                description: "Не удалось расторгнуть контракт с поставщиком",
+                variant: "destructive",
+              })
+            } finally {
+              setIsDeleting(false)
+              setSupplierToDelete(null)
+            }
+          }
+
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Открыть меню</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Действия</DropdownMenuLabel>
+                <DropdownMenuItem onClick={handleDeleteSupplier} disabled={isDeleting} className="text-destructive">
+                  {isDeleting && supplierToDelete?.id === supplier.id ? "Удаление..." : "Расторгнуть контракт"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
+        },
+      },
+    ],
+    [fetchSuppliers, toast, isDeleting, supplierToDelete],
+  )
 
   const table = useReactTable({
-    data,
+    data: suppliers,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -170,6 +178,17 @@ export function SuppliersTable() {
       rowSelection,
     },
   })
+
+  if (isLoading) {
+    return (
+      <div className="w-full">
+        <div className="flex items-center justify-center py-8">
+          <Icons.spinner className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Загрузка поставщиков...</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full">
@@ -208,7 +227,7 @@ export function SuppliersTable() {
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                  Нет результатов.
+                  Нет поставщиков.
                 </TableCell>
               </TableRow>
             )}
