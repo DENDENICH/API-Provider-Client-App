@@ -13,27 +13,20 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { ArrowUpDown, Eye, MoreHorizontal } from "lucide-react"
+import { ArrowUpDown, Eye, Trash } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useRouter } from "next/navigation"
-
-// Добавьте импорт Dialog и связанных компонентов, а также Label и Icons
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Icons } from "@/components/icons"
 import { expensesService } from "@/lib/api-services"
 import { useToast } from "@/hooks/use-toast"
-import { Trash } from "lucide-react"
+import { useAuth } from "@/contexts/auth-context"
+import { Plus } from "lucide-react"
+import Link from "next/link"
 
 // Типы данных для товара на складе
 type ExpenseItem = {
@@ -44,12 +37,11 @@ type ExpenseItem = {
   category: string
   quantity: number
   description?: string
+  product_id: number
 }
 
-// Удалите примерные данные const data: ExpenseItem[] = [...]
-
-// Добавьте состояния для данных
 const ExpenseTableComponent = () => {
+  const { user } = useAuth()
   const [expenses, setExpenses] = React.useState<ExpenseItem[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const { toast } = useToast()
@@ -77,6 +69,7 @@ const ExpenseTableComponent = () => {
         category: getCategoryDisplayName(expense.category),
         quantity: expense.quantity,
         description: expense.description,
+        product_id: expense.product_id,
       }))
 
       setExpenses(transformedExpenses)
@@ -111,7 +104,6 @@ const ExpenseTableComponent = () => {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
-  const [rowSelection, setRowSelection] = React.useState({})
 
   // Добавьте следующие состояния после объявления состояний sorting, columnFilters и т.д.:
   const [isStockDialogOpen, setIsStockDialogOpen] = React.useState(false)
@@ -193,9 +185,34 @@ const ExpenseTableComponent = () => {
   // Определение колонок таблицы
   const columns: ColumnDef<ExpenseItem>[] = [
     {
-      accessorKey: "articleNumber",
-      header: "Артикул",
-      cell: ({ row }) => <div>{row.getValue("articleNumber")}</div>,
+      id: "actions",
+      enableHiding: false,
+      cell: ({ row }) => {
+        const item = row.original
+
+        return (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => router.push(`/expense/${item.product_id}`)}
+              title="Просмотр"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 text-destructive"
+              onClick={() => handleDeleteExpense(item)}
+              title="Удалить"
+            >
+              <Trash className="h-4 w-4" />
+            </Button>
+          </div>
+        )
+      },
     },
     {
       accessorKey: "name",
@@ -210,6 +227,16 @@ const ExpenseTableComponent = () => {
       cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
     },
     {
+      accessorKey: "category",
+      header: "Категория",
+      cell: ({ row }) => <div>{row.getValue("category")}</div>,
+    },
+    {
+      accessorKey: "articleNumber",
+      header: "Артикул",
+      cell: ({ row }) => <div>{row.getValue("articleNumber")}</div>,
+    },
+    {
       accessorKey: "organization",
       header: ({ column }) => {
         return (
@@ -222,16 +249,11 @@ const ExpenseTableComponent = () => {
       cell: ({ row }) => <div>{row.getValue("organization")}</div>,
     },
     {
-      accessorKey: "category",
-      header: "Категория",
-      cell: ({ row }) => <div>{row.getValue("category")}</div>,
-    },
-    {
       accessorKey: "quantity",
       header: ({ column }) => {
         return (
           <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-            Количество
+            В наличии
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
         )
@@ -250,40 +272,11 @@ const ExpenseTableComponent = () => {
         )
       },
     },
-    {
-      id: "actions",
-      enableHiding: false,
-      cell: ({ row }) => {
-        const item = row.original
-
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Открыть меню</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Действия</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => router.push(`/expense/${item.id}`)}>
-                <Eye className="mr-2 h-4 w-4" />
-                Просмотр
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDeleteExpense(item)} className="text-destructive">
-                <Trash className="mr-2 h-4 w-4" />
-                Удалить
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )
-      },
-    },
   ]
 
   // Инициализация таблицы с помощью TanStack Table
   const table = useReactTable({
-    data: expenses, // Изменено с data на expenses
+    data: expenses,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -292,12 +285,10 @@ const ExpenseTableComponent = () => {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
     state: {
       sorting,
       columnFilters,
       columnVisibility,
-      rowSelection,
     },
   })
 
@@ -319,14 +310,23 @@ const ExpenseTableComponent = () => {
 
   return (
     <div className="w-full">
-      {/* Поле поиска по названию товара */}
-      <div className="flex items-center py-4">
+      {/* Поле поиска по названию товара и кнопка создания */}
+      <div className="flex items-center justify-between py-4">
         <Input
           placeholder="Поиск по названию..."
           value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
           onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
           className="max-w-sm"
         />
+        {/* Кнопка создания товара для поставщиков */}
+        {user?.organizerRole === "supplier" && (
+          <Link href="/products/create">
+            <Button className="bg-orange-500 hover:bg-orange-600 text-white">
+              <Plus className="mr-2 h-4 w-4" />
+              Создать товар
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Таблица с товарами */}
