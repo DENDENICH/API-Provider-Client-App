@@ -129,12 +129,12 @@ export const suppliesService = {
     return apiClient.post<SupplyResponse>(`${API_BASE_URL}/supplies`, supplyData)
   },
 
-  // Принятие/отклонение поставки
+  // Принятие/отклонение поставки (PATCH /supplies/{supply_id})
   assembleOrCancelSupply: async (supplyId: number, data: SupplyAssembleCancelled): Promise<SupplyResponse> => {
     return apiClient.patch<SupplyResponse>(`${API_BASE_URL}/supplies/${supplyId}`, data)
   },
 
-  // Изменение статуса поставки
+  // Изменение статуса поставки (PATCH /supplies/{supply_id}/status)
   updateSupplyStatus: async (supplyId: number, statusData: SupplyStatusUpdate): Promise<SupplyResponse> => {
     return apiClient.patch<SupplyResponse>(`${API_BASE_URL}/supplies/${supplyId}/status`, statusData)
   },

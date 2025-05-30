@@ -92,7 +92,6 @@ function StatusBadge({
           <DropdownMenuItem onClick={() => onStatusChange("in_delivery")}>В доставке</DropdownMenuItem>
           <DropdownMenuItem onClick={() => onStatusChange("delivered")}>Доставлен</DropdownMenuItem>
           <DropdownMenuItem onClick={() => onStatusChange("adopted")}>Принят</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onStatusChange("cancelled")}>Отменен</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     )
@@ -125,8 +124,8 @@ export function DeliveriesTable() {
 
       let response
       if (user?.organizerRole === "supplier") {
-        // Для поставщиков получаем поставки, ожидающие подтверждения
-        response = await suppliesService.getSupplies(true)
+        // Для поставщиков получаем подтвержденные поставки (is_wait_confirm = false)
+        response = await suppliesService.getSupplies(false)
       } else {
         // Для компаний получаем все поставки без параметра
         response = await suppliesService.getSupplies()
@@ -224,7 +223,7 @@ export function DeliveriesTable() {
     })
   }
 
-  // Функция для изменения статуса поставки
+  // Функция для изменения статуса поставки (PATCH /supplies/{supply_id}/status)
   const handleStatusChange = async (id: number, newStatus: SupplyResponse["status"]) => {
     try {
       await suppliesService.updateSupplyStatus(id, { status: newStatus })
