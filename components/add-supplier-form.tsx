@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useState } from "react"
 import { Icons } from "@/components/icons"
+import { suppliersService } from "@/lib/api-services"
+import type { SupplierResponse } from "@/lib/api-types"
+import { useToast } from "@/hooks/use-toast"
 
 const formSchema = z.object({
   inn: z
@@ -18,12 +21,17 @@ const formSchema = z.object({
     })
     .max(12, {
       message: "ИНН должен содержать не более 12 символов",
+    })
+    .regex(/^\d+$/, {
+      message: "ИНН должен содержать только цифры",
     }),
 })
 
 export function AddSupplierForm() {
   const [isLoading, setIsLoading] = useState(false)
-  const [supplierFound, setSupplierFound] = useState<any>(null)
+  const [supplierFound, setSupplierFound] = useState<SupplierResponse | null>(null)
+  const [isAdding, setIsAdding] = useState(false)
+  const { toast } = useToast()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -37,41 +45,51 @@ export function AddSupplierForm() {
     setSupplierFound(null)
 
     try {
-      // Имитация поиска поставщика по ИНН
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Для демонстрации создаем фиктивного поставщика
-      if (values.inn === "1234567890") {
-        setSupplierFound({
-          name: "L'Oréal Professional",
-          inn: "1234567890",
-          address: "г. Москва, ул. Тверская, д. 10",
-        })
-      } else if (values.inn === "0987654321") {
-        setSupplierFound({
-          name: "Clarins",
-          inn: "0987654321",
-          address: "г. Москва, ул. Арбат, д. 25",
-        })
-      } else {
-        // Случайный поставщик для других ИНН
-        const suppliers = [
-          { name: "Gehwol", inn: values.inn, address: "г. Москва, ул. Ленина, д. 15" },
-          { name: "Janssen Cosmetics", inn: values.inn, address: "г. Москва, ул. Пушкина, д. 20" },
-          { name: "Kérastase", inn: values.inn, address: "г. Москва, ул. Гагарина, д. 30" },
-        ]
-        setSupplierFound(suppliers[Math.floor(Math.random() * suppliers.length)])
-      }
+      console.log("Searching supplier by INN:", values.inn)
+      const supplier = await suppliersService.getSupplierByInn(Number.parseInt(values.inn))
+      console.log("Supplier found:", supplier)
+      setSupplierFound(supplier)
+      toast({
+        title: "Поставщик найден",
+        description: `Найден поставщик: ${supplier.name}`,
+      })
+    } catch (error) {
+      console.error("Error searching supplier:", error)
+      toast({
+        title: "Поставщик не найден",
+        description: "Поставщик с указанным ИНН не найден в системе",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleAddSupplier = () => {
-    // Здесь будет логика добавления поставщика
-    alert(`Поставщик ${supplierFound.name} добавлен`)
-    setSupplierFound(null)
-    form.reset()
+  const handleAddSupplier = async () => {
+    if (!supplierFound) return
+
+    setIsAdding(true)
+    try {
+      console.log("Adding supplier with ID:", supplierFound.id)
+      await suppliersService.addSupplier(supplierFound.id)
+      toast({
+        title: "Успешно",
+        description: `Поставщик ${supplierFound.name} добавлен в контакты`,
+      })
+      setSupplierFound(null)
+      form.reset()
+      // Обновляем страницу для отображения нового поставщика
+      window.location.reload()
+    } catch (error) {
+      console.error("Error adding supplier:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось добавить поставщика в контакты",
+        variant: "destructive",
+      })
+    } finally {
+      setIsAdding(false)
+    }
   }
 
   return (
@@ -125,7 +143,11 @@ export function AddSupplierForm() {
               <p>
                 <span className="font-medium">Адрес:</span> {supplierFound.address}
               </p>
-              <Button onClick={handleAddSupplier} className="mt-4">
+              <p>
+                <span className="font-medium">Банковские реквизиты:</span> {supplierFound.bank_details}
+              </p>
+              <Button onClick={handleAddSupplier} disabled={isAdding} className="mt-4">
+                {isAdding && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />}
                 Заключить контракт
               </Button>
             </div>

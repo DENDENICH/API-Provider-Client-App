@@ -25,57 +25,13 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-
-// Типы данных
-type Supplier = {
-  id: string
-  name: string
-  inn: string
-  address: string
-  contractDate: string
-}
-
-// Примерные данные
-const data: Supplier[] = [
-  {
-    id: "1",
-    name: "L'Oréal Professional",
-    inn: "1234567890",
-    address: "г. Москва, ул. Тверская, д. 10",
-    contractDate: "2023-01-15",
-  },
-  {
-    id: "2",
-    name: "Clarins",
-    inn: "0987654321",
-    address: "г. Москва, ул. Арбат, д. 25",
-    contractDate: "2023-02-20",
-  },
-  {
-    id: "3",
-    name: "Gehwol",
-    inn: "5678901234",
-    address: "г. Москва, ул. Ленина, д. 15",
-    contractDate: "2023-03-10",
-  },
-  {
-    id: "4",
-    name: "Janssen Cosmetics",
-    inn: "4321098765",
-    address: "г. Москва, ул. Пушкина, д. 20",
-    contractDate: "2023-04-05",
-  },
-  {
-    id: "5",
-    name: "Kérastase",
-    inn: "9876543210",
-    address: "г. Москва, ул. Гагарина, д. 30",
-    contractDate: "2023-05-12",
-  },
-]
+import { suppliersService } from "@/lib/api-services"
+import type { SupplierResponse } from "@/lib/api-types"
+import { useToast } from "@/hooks/use-toast"
+import { Icons } from "@/components/icons"
 
 // Определение колонок
-export const columns: ColumnDef<Supplier>[] = [
+export const columns: ColumnDef<SupplierResponse>[] = [
   {
     accessorKey: "name",
     header: ({ column }) => {
@@ -103,12 +59,13 @@ export const columns: ColumnDef<Supplier>[] = [
     ),
   },
   {
-    accessorKey: "contractDate",
-    header: "Дата контракта",
-    cell: ({ row }) => {
-      const date = new Date(row.getValue("contractDate"))
-      return <div>{date.toLocaleDateString("ru-RU")}</div>
-    },
+    accessorKey: "bank_details",
+    header: "Банковские реквизиты",
+    cell: ({ row }) => (
+      <div className="max-w-[150px] truncate" title={row.getValue("bank_details")}>
+        {row.getValue("bank_details")}
+      </div>
+    ),
   },
   {
     id: "actions",
@@ -116,14 +73,28 @@ export const columns: ColumnDef<Supplier>[] = [
     cell: ({ row }) => {
       const supplier = row.original
       const [isDeleting, setIsDeleting] = React.useState(false)
+      const { toast } = useToast()
 
-      const handleDeleteContract = () => {
+      const handleDeleteSupplier = async () => {
         setIsDeleting(true)
-        // Имитация удаления контракта
-        setTimeout(() => {
-          alert(`Контракт с поставщиком ${supplier.name} расторгнут`)
+        try {
+          await suppliersService.removeSupplier(supplier.id)
+          toast({
+            title: "Успешно",
+            description: `Контракт с поставщиком ${supplier.name} расторгнут`,
+          })
+          // Обновляем данные
+          window.location.reload()
+        } catch (error) {
+          console.error("Error deleting supplier:", error)
+          toast({
+            title: "Ошибка",
+            description: "Не удалось расторгнуть контракт с поставщиком",
+            variant: "destructive",
+          })
+        } finally {
           setIsDeleting(false)
-        }, 1000)
+        }
       }
 
       return (
@@ -136,7 +107,7 @@ export const columns: ColumnDef<Supplier>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Действия</DropdownMenuLabel>
-            <DropdownMenuItem onClick={handleDeleteContract} disabled={isDeleting} className="text-destructive">
+            <DropdownMenuItem onClick={handleDeleteSupplier} disabled={isDeleting} className="text-destructive">
               {isDeleting ? "Удаление..." : "Расторгнуть контракт"}
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -151,9 +122,36 @@ export function SuppliersTable() {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
+  const [suppliers, setSuppliers] = React.useState<SupplierResponse[]>([])
+  const [isLoading, setIsLoading] = React.useState(true)
+  const { toast } = useToast()
+
+  // Загрузка поставщиков при монтировании компонента
+  React.useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        setIsLoading(true)
+        console.log("Fetching suppliers...")
+        const response = await suppliersService.getSuppliers()
+        console.log("Suppliers response:", response)
+        setSuppliers(response.organizers || [])
+      } catch (error) {
+        console.error("Error fetching suppliers:", error)
+        toast({
+          title: "Ошибка",
+          description: "Не удалось загрузить список поставщиков",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchSuppliers()
+  }, [toast])
 
   const table = useReactTable({
-    data,
+    data: suppliers,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -170,6 +168,17 @@ export function SuppliersTable() {
       rowSelection,
     },
   })
+
+  if (isLoading) {
+    return (
+      <div className="w-full">
+        <div className="flex items-center justify-center py-8">
+          <Icons.spinner className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Загрузка поставщиков...</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full">
@@ -208,7 +217,7 @@ export function SuppliersTable() {
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                  Нет результатов.
+                  Нет поставщиков.
                 </TableCell>
               </TableRow>
             )}
