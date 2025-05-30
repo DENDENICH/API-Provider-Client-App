@@ -248,9 +248,9 @@ export function DeliveriesTable() {
   }
 
   // Функция для просмотра детальной информации о поставке
-  const handleViewDelivery = async (deliveryId: number) => {
+  const handleViewDelivery = (deliveryId: number) => {
     try {
-      console.log(`Fetching delivery details for ID: ${deliveryId}`)
+      console.log(`Viewing delivery with ID: ${deliveryId}`)
 
       if (!deliveryId || deliveryId === 0) {
         toast({
@@ -261,17 +261,30 @@ export function DeliveriesTable() {
         return
       }
 
-      // Получаем детальную информацию о поставке
-      const deliveryDetails = await suppliesService.getSupplyById(deliveryId)
-      console.log("Delivery details:", deliveryDetails)
+      // Находим поставку в текущем массиве
+      const delivery = deliveries.find((d) => d.id === deliveryId)
 
-      // Перенаправляем на страницу просмотра с полученными данными
+      if (!delivery) {
+        toast({
+          title: "Ошибка",
+          description: "Поставка не найдена",
+          variant: "destructive",
+        })
+        return
+      }
+
+      console.log("Found delivery data:", delivery)
+
+      // Сохраняем данные поставки в localStorage для передачи на страницу просмотра
+      localStorage.setItem(`delivery_${deliveryId}`, JSON.stringify(delivery))
+
+      // Перенаправляем на страницу просмотра
       router.push(`/deliveries/${deliveryId}`)
     } catch (error) {
-      console.error("Error fetching delivery details:", error)
+      console.error("Error viewing delivery:", error)
       toast({
         title: "Ошибка",
-        description: "Не удалось загрузить детальную информацию о поставке",
+        description: "Не удалось открыть детальную информацию о поставке",
         variant: "destructive",
       })
     }

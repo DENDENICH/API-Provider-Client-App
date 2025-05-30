@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Download, Printer } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
-import { suppliesService } from "@/lib/api-services"
 import type { SupplyResponse } from "@/lib/api-types"
 
 // Функция для отображения статуса поставки
@@ -60,14 +59,27 @@ export default function DeliveryDetailPage({ params }: { params: { id: string } 
       return
     }
 
-    // Загрузка данных о поставке из API
-    const fetchDeliveryData = async () => {
+    // Загрузка данных о поставке из localStorage
+    const loadDeliveryData = () => {
       setIsLoading(true)
       try {
-        console.log(`Fetching delivery data for ID: ${params.id}`)
+        console.log(`Loading delivery data for ID: ${params.id}`)
 
-        const deliveryData = await suppliesService.getSupplyById(Number(params.id))
-        console.log("Delivery data received:", deliveryData)
+        // Получаем данные из localStorage
+        const deliveryDataString = localStorage.getItem(`delivery_${params.id}`)
+
+        if (!deliveryDataString) {
+          console.error("Delivery data not found in localStorage")
+          toast({
+            title: "Ошибка",
+            description: "Данные о поставке не найдены. Попробуйте вернуться к списку поставок.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        const deliveryData = JSON.parse(deliveryDataString) as SupplyResponse
+        console.log("Delivery data loaded from localStorage:", deliveryData)
 
         setDelivery(deliveryData)
       } catch (error) {
@@ -82,7 +94,7 @@ export default function DeliveryDetailPage({ params }: { params: { id: string } 
       }
     }
 
-    fetchDeliveryData()
+    loadDeliveryData()
   }, [params.id, toast, router])
 
   // Если идентификатор "create", то мы уже перенаправили пользователя
@@ -166,8 +178,8 @@ export default function DeliveryDetailPage({ params }: { params: { id: string } 
         <Card>
           <CardContent className="flex flex-col items-center justify-center h-64">
             <p className="text-muted-foreground">Поставка не найдена</p>
-            <Button className="mt-4" onClick={() => router.back()}>
-              Вернуться назад
+            <Button className="mt-4" onClick={() => router.push("/deliveries")}>
+              Вернуться к списку поставок
             </Button>
           </CardContent>
         </Card>
