@@ -114,8 +114,13 @@ export const suppliesService = {
     return apiClient.get<SuppliesResponse>(url)
   },
 
-  // Получение информации о поставке
+  // Получение информации о поставке по ID
   getSupply: async (supplyId: number): Promise<SupplyResponse> => {
+    return apiClient.get<SupplyResponse>(`${API_BASE_URL}/supplies/${supplyId}`)
+  },
+
+  // Альтернативное название для совместимости
+  getSupplyById: async (supplyId: number): Promise<SupplyResponse> => {
     return apiClient.get<SupplyResponse>(`${API_BASE_URL}/supplies/${supplyId}`)
   },
 

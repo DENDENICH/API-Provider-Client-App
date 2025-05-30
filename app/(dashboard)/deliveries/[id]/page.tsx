@@ -6,52 +6,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Download, Printer } from "lucide-react"
 import { useState, useEffect } from "react"
-import { Separator } from "@/components/ui/separator"
-import { useToast } from "@/components/ui/use-toast"
-
-// Типы данных для товара в поставке
-type DeliveryProduct = {
-  id: string
-  name: string
-  quantity: number
-  price: string
-}
-
-// Типы данных для поставки
-type Delivery = {
-  id: string
-  number: string
-  supplier: string
-  orderDate: string
-  products: DeliveryProduct[]
-  status: "processing" | "collected" | "delivering" | "delivered" | "accepted" | "canceled"
-  customer: string
-  courier: string
-  address: string
-  deliveryDate: string
-  amount: string
-  receipt?: string
-  notes?: string
-  paymentMethod: string
-  paymentStatus: "pending" | "paid" | "refunded"
-  trackingNumber?: string
-}
+import { useToast } from "@/hooks/use-toast"
+import { suppliesService } from "@/lib/api-services"
+import type { SupplyResponse } from "@/lib/api-types"
 
 // Функция для отображения статуса поставки
-function StatusBadge({ status }: { status: Delivery["status"] }) {
+function StatusBadge({ status }: { status: SupplyResponse["status"] }) {
   let badgeContent
   let badgeClass
 
   switch (status) {
-    case "processing":
-      badgeContent = "В обработке"
-      badgeClass = "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
-      break
-    case "collected":
+    case "assembled":
       badgeContent = "Собран"
       badgeClass = "bg-blue-100 text-blue-800 hover:bg-blue-100"
       break
-    case "delivering":
+    case "in_delivery":
       badgeContent = "В доставке"
       badgeClass = "bg-orange-100 text-orange-800 hover:bg-orange-100"
       break
@@ -59,42 +28,13 @@ function StatusBadge({ status }: { status: Delivery["status"] }) {
       badgeContent = "Доставлен"
       badgeClass = "bg-green-100 text-green-800 hover:bg-green-100"
       break
-    case "accepted":
+    case "adopted":
       badgeContent = "Принят"
       badgeClass = "bg-green-500 text-white hover:bg-green-600"
       break
-    case "canceled":
+    case "cancelled":
       badgeContent = "Отменен"
       badgeClass = "bg-red-100 text-red-800 hover:bg-red-100"
-      break
-    default:
-      return null
-  }
-
-  return (
-    <Badge variant="outline" className={badgeClass}>
-      {badgeContent}
-    </Badge>
-  )
-}
-
-// Функция для отображения статуса оплаты
-function PaymentStatusBadge({ status }: { status: Delivery["paymentStatus"] }) {
-  let badgeContent
-  let badgeClass
-
-  switch (status) {
-    case "pending":
-      badgeContent = "Ожидает оплаты"
-      badgeClass = "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
-      break
-    case "paid":
-      badgeContent = "Оплачено"
-      badgeClass = "bg-green-100 text-green-800 hover:bg-green-100"
-      break
-    case "refunded":
-      badgeContent = "Возврат"
-      badgeClass = "bg-blue-100 text-blue-800 hover:bg-blue-100"
       break
     default:
       return null
@@ -111,7 +51,7 @@ export default function DeliveryDetailPage({ params }: { params: { id: string } 
   const router = useRouter()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(true)
-  const [delivery, setDelivery] = useState<Delivery | null>(null)
+  const [delivery, setDelivery] = useState<SupplyResponse | null>(null)
 
   // Проверяем, не является ли текущий маршрут /deliveries/create
   useEffect(() => {
@@ -120,51 +60,16 @@ export default function DeliveryDetailPage({ params }: { params: { id: string } 
       return
     }
 
-    // Загрузка данных о поставке
+    // Загрузка данных о поставке из API
     const fetchDeliveryData = async () => {
       setIsLoading(true)
       try {
-        // В реальном приложении здесь будет запрос к API
-        // Имитация задержки загрузки данных
-        await new Promise((resolve) => setTimeout(resolve, 800))
+        console.log(`Fetching delivery data for ID: ${params.id}`)
 
-        // Временные данные для демонстрации
-        setDelivery({
-          id: params.id,
-          number: `${params.id.padStart(5, "0")}`,
-          supplier: "L'Oréal Professional",
-          orderDate: "2023-05-01",
-          products: [
-            {
-              id: "1",
-              name: "Шампунь для окрашенных волос",
-              quantity: 10,
-              price: "1200.00 ₽",
-            },
-            {
-              id: "2",
-              name: "Маска для волос",
-              quantity: 5,
-              price: "1800.00 ₽",
-            },
-            {
-              id: "3",
-              name: "Кондиционер для волос",
-              quantity: 8,
-              price: "950.00 ₽",
-            },
-          ],
-          status: "delivering",
-          customer: "Салон красоты 'Элегант'",
-          courier: "Иванов Иван, +7 (999) 123-45-67",
-          address: "г. Москва, ул. Ленина, д. 10",
-          deliveryDate: "2023-05-05",
-          amount: "25750.00 ₽",
-          notes: "Доставка в рабочее время с 10:00 до 18:00",
-          paymentMethod: "Безналичный расчет",
-          paymentStatus: "paid",
-          trackingNumber: "TRACK123456789",
-        })
+        const deliveryData = await suppliesService.getSupplyById(Number(params.id))
+        console.log("Delivery data received:", deliveryData)
+
+        setDelivery(deliveryData)
       } catch (error) {
         console.error("Ошибка при загрузке данных о поставке:", error)
         toast({
@@ -187,6 +92,41 @@ export default function DeliveryDetailPage({ params }: { params: { id: string } 
 
   // Функция для скачивания накладной
   const handleDownloadInvoice = () => {
+    if (!delivery) return
+
+    let invoiceText = "НАКЛАДНАЯ\n\n"
+    invoiceText += `Дата: ${new Date().toLocaleDateString("ru-RU")}\n`
+    invoiceText += `Номер поставки: #${delivery.article}\n\n`
+
+    invoiceText += "Информация о поставке:\n"
+    invoiceText += `Поставщик: ${delivery.supplier.name}\n`
+    invoiceText += `Заказчик: ${delivery.company.name}\n`
+    invoiceText += `Адрес доставки: ${delivery.delivery_address}\n`
+    invoiceText += `Статус: ${delivery.status}\n\n`
+
+    invoiceText += "Товары:\n"
+    delivery.supply_products.forEach((product, index) => {
+      const totalPrice = product.product.price * product.quantity
+      invoiceText += `${index + 1}. ${product.product.name}\n`
+      invoiceText += `   Артикул: ${product.product.article}\n`
+      invoiceText += `   Цена за единицу: ${product.product.price.toFixed(2)} ₽\n`
+      invoiceText += `   Количество: ${product.quantity} шт.\n`
+      invoiceText += `   Сумма: ${totalPrice.toFixed(2)} ₽\n\n`
+    })
+
+    invoiceText += `Общая сумма: ${delivery.total_price.toFixed(2)} ₽\n\n`
+    invoiceText += "Подпись: ___________________"
+
+    const blob = new Blob([invoiceText], { type: "text/plain" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `Накладная_${delivery.article}_${new Date().toISOString().slice(0, 10)}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
     toast({
       title: "Накладная скачана",
       description: "Накладная успешно скачана",
@@ -242,7 +182,7 @@ export default function DeliveryDetailPage({ params }: { params: { id: string } 
         <Button variant="outline" size="icon" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h2 className="text-3xl font-bold tracking-tight">Поставка #{delivery.number}</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Поставка #{delivery.article}</h2>
         <div className="ml-auto flex items-center gap-2">
           <StatusBadge status={delivery.status} />
           <Button variant="outline" size="sm" onClick={handleDownloadInvoice}>
@@ -256,7 +196,7 @@ export default function DeliveryDetailPage({ params }: { params: { id: string } 
 
       {/* Заголовок для печати */}
       <div className="hidden print:flex print:flex-col print:gap-2">
-        <h1 className="text-3xl font-bold">Поставка #{delivery.number}</h1>
+        <h1 className="text-3xl font-bold">Поставка #{delivery.article}</h1>
         <div className="flex items-center gap-2">
           <p className="text-muted-foreground">Статус:</p>
           <StatusBadge status={delivery.status} />
@@ -273,25 +213,21 @@ export default function DeliveryDetailPage({ params }: { params: { id: string } 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Номер поставки</p>
-                <p>#{delivery.number}</p>
+                <p>#{delivery.article}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Дата заказа</p>
-                <p>{new Date(delivery.orderDate).toLocaleDateString("ru-RU")}</p>
+                <p className="text-sm font-medium text-muted-foreground">ID поставки</p>
+                <p>{delivery.id}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Поставщик</p>
-                <p>{delivery.supplier}</p>
+                <p>{delivery.supplier.name}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Заказчик</p>
-                <p>{delivery.customer}</p>
+                <p>{delivery.company.name}</p>
               </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Дата доставки</p>
-                <p>{new Date(delivery.deliveryDate).toLocaleDateString("ru-RU")}</p>
-              </div>
-              <div>
+              <div className="col-span-2">
                 <p className="text-sm font-medium text-muted-foreground">Статус</p>
                 <StatusBadge status={delivery.status} />
               </div>
@@ -306,50 +242,15 @@ export default function DeliveryDetailPage({ params }: { params: { id: string } 
           <CardContent className="space-y-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Адрес доставки</p>
-              <p>{delivery.address}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Курьер</p>
-              <p>{delivery.courier}</p>
-            </div>
-            {delivery.trackingNumber && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Номер отслеживания</p>
-                <p>{delivery.trackingNumber}</p>
-              </div>
-            )}
-            {delivery.notes && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Примечания</p>
-                <p>{delivery.notes}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Информация об оплате */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Информация об оплате</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Способ оплаты</p>
-              <p>{delivery.paymentMethod}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Статус оплаты</p>
-              <PaymentStatusBadge status={delivery.paymentStatus} />
+              <p>{delivery.delivery_address}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Общая сумма</p>
-              <p className="text-xl font-bold">{delivery.amount}</p>
+              <p className="text-xl font-bold">{delivery.total_price.toFixed(2)} ₽</p>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Таблица с товарами в поставке */}
       <Card>
@@ -363,84 +264,34 @@ export default function DeliveryDetailPage({ params }: { params: { id: string } 
               <thead>
                 <tr className="border-b bg-muted/50">
                   <th className="h-10 px-4 text-left font-medium">Название</th>
+                  <th className="h-10 px-4 text-center font-medium">Артикул</th>
                   <th className="h-10 px-4 text-center font-medium">Количество</th>
                   <th className="h-10 px-4 text-right font-medium">Цена за единицу</th>
                   <th className="h-10 px-4 text-right font-medium">Сумма</th>
                 </tr>
               </thead>
               <tbody>
-                {delivery.products.map((product) => {
-                  // Расчет суммы для каждого товара
-                  const price = Number.parseFloat(product.price.replace(/[^\d.]/g, ""))
-                  const total = price * product.quantity
-                  const formattedTotal = `${total.toFixed(2)} ₽`
+                {delivery.supply_products.map((item, index) => {
+                  const total = item.product.price * item.quantity
 
                   return (
-                    <tr key={product.id} className="border-b">
-                      <td className="p-4">{product.name}</td>
-                      <td className="p-4 text-center">{product.quantity} шт.</td>
-                      <td className="p-4 text-right">{product.price}</td>
-                      <td className="p-4 text-right font-medium">{formattedTotal}</td>
+                    <tr key={index} className="border-b">
+                      <td className="p-4">{item.product.name}</td>
+                      <td className="p-4 text-center">{item.product.article}</td>
+                      <td className="p-4 text-center">{item.quantity} шт.</td>
+                      <td className="p-4 text-right">{item.product.price.toFixed(2)} ₽</td>
+                      <td className="p-4 text-right font-medium">{total.toFixed(2)} ₽</td>
                     </tr>
                   )
                 })}
                 <tr>
-                  <td colSpan={3} className="p-4 text-right font-medium">
+                  <td colSpan={4} className="p-4 text-right font-medium">
                     Итого:
                   </td>
-                  <td className="p-4 text-right font-bold">{delivery.amount}</td>
+                  <td className="p-4 text-right font-bold">{delivery.total_price.toFixed(2)} ₽</td>
                 </tr>
               </tbody>
             </table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* История статусов поставки */}
-      <Card className="print:hidden">
-        <CardHeader>
-          <CardTitle>История статусов</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-start">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-800">
-                <span className="text-xs font-bold">1</span>
-              </div>
-              <div className="ml-4 space-y-1">
-                <p className="text-sm font-medium">Заказ создан</p>
-                <p className="text-sm text-muted-foreground">
-                  {new Date(delivery.orderDate).toLocaleDateString("ru-RU")},{" "}
-                  {new Date(delivery.orderDate).toLocaleTimeString("ru-RU")}
-                </p>
-              </div>
-            </div>
-            <Separator />
-            <div className="flex items-start">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-800">
-                <span className="text-xs font-bold">2</span>
-              </div>
-              <div className="ml-4 space-y-1">
-                <p className="text-sm font-medium">Заказ обработан</p>
-                <p className="text-sm text-muted-foreground">
-                  {new Date(new Date(delivery.orderDate).getTime() + 86400000).toLocaleDateString("ru-RU")},{" "}
-                  {new Date(new Date(delivery.orderDate).getTime() + 86400000).toLocaleTimeString("ru-RU")}
-                </p>
-              </div>
-            </div>
-            <Separator />
-            <div className="flex items-start">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 text-orange-800">
-                <span className="text-xs font-bold">3</span>
-              </div>
-              <div className="ml-4 space-y-1">
-                <p className="text-sm font-medium">Передан в доставку</p>
-                <p className="text-sm text-muted-foreground">
-                  {new Date(new Date(delivery.orderDate).getTime() + 172800000).toLocaleDateString("ru-RU")},{" "}
-                  {new Date(new Date(delivery.orderDate).getTime() + 172800000).toLocaleTimeString("ru-RU")}
-                </p>
-              </div>
-            </div>
           </div>
         </CardContent>
       </Card>

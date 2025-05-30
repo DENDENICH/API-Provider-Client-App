@@ -145,23 +145,30 @@ export function DeliveriesTable() {
   }, [fetchDeliveries])
 
   // Функция для обработки выбора всех строк
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      const allIds = deliveries.filter((delivery) => delivery.id).map((delivery) => delivery.id.toString())
-      setSelectedRows(allIds)
-    } else {
-      setSelectedRows([])
-    }
-  }
+  const handleSelectAll = React.useCallback(
+    (checked: boolean) => {
+      if (checked) {
+        const allIds = deliveries
+          .filter((delivery) => delivery.id != null && delivery.id !== 0)
+          .map((delivery) => String(delivery.id))
+        setSelectedRows(allIds)
+      } else {
+        setSelectedRows([])
+      }
+    },
+    [deliveries],
+  )
 
   // Функция для обработки выбора отдельной строки
-  const handleSelectRow = (id: string, checked: boolean) => {
-    if (checked) {
-      setSelectedRows((prev) => [...prev, id])
-    } else {
-      setSelectedRows((prev) => prev.filter((rowId) => rowId !== id))
-    }
-  }
+  const handleSelectRow = React.useCallback((id: string, checked: boolean) => {
+    setSelectedRows((prev) => {
+      if (checked) {
+        return [...prev, id]
+      } else {
+        return prev.filter((rowId) => rowId !== id)
+      }
+    })
+  }, [])
 
   // Функция для скачивания накладной
   const handleDownloadInvoice = () => {
@@ -175,7 +182,7 @@ export function DeliveriesTable() {
     }
 
     const selectedDeliveries = deliveries.filter(
-      (delivery) => delivery.id && selectedRows.includes(delivery.id.toString()),
+      (delivery) => delivery.id != null && selectedRows.includes(String(delivery.id)),
     )
 
     let invoiceText = "НАКЛАДНАЯ\n\n"
@@ -240,138 +247,186 @@ export function DeliveriesTable() {
     }
   }
 
-  // Определение колонок таблицы
-  const columns: ColumnDef<SupplyResponse>[] = [
-    {
-      id: "select",
-      header: ({ table }) => (
-        <Checkbox
-          checked={selectedRows.length === deliveries.length && deliveries.length > 0}
-          onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-          aria-label="Выбрать все"
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.original.id ? selectedRows.includes(row.original.id.toString()) : false}
-          onCheckedChange={(checked) =>
-            row.original.id ? handleSelectRow(row.original.id.toString(), checked as boolean) : undefined
-          }
-          aria-label="Выбрать строку"
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false,
-    },
-    {
-      accessorKey: "article",
-      header: "Номер",
-      cell: ({ row }) => <div className="font-medium">#{row.getValue("article")}</div>,
-    },
-    // Показывать колонку "Поставщик" только для роли "company"
-    ...(user?.organizerRole === "company"
-      ? [
-          {
-            accessorKey: "supplier",
-            header: ({ column }) => {
-              return (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-                  Поставщик
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              )
-            },
-            cell: ({ row }) => {
-              const supplier = row.getValue("supplier") as SupplyResponse["supplier"]
-              return <div>{supplier.name}</div>
-            },
-          } as ColumnDef<SupplyResponse>,
-        ]
-      : []),
-    {
-      accessorKey: "delivery_address",
-      header: "Адрес доставки",
-      cell: ({ row }) => {
-        const address = row.getValue("delivery_address") as string
-        return (
-          <div className="max-w-[150px] truncate" title={address}>
-            {address}
-          </div>
-        )
-      },
-    },
-    {
-      accessorKey: "supply_products",
-      header: "Товары",
-      cell: ({ row }) => {
-        const products = row.getValue("supply_products") as SupplyResponse["supply_products"]
-        const productText = products.map((p) => `${p.product.name} (${p.quantity} шт.)`).join(", ")
-        return (
-          <div className="max-w-[200px] truncate" title={productText}>
-            {productText}
-          </div>
-        )
-      },
-    },
-    {
-      accessorKey: "status",
-      header: "Статус",
-      cell: ({ row }) => {
-        const delivery = row.original
-        return (
-          <StatusBadge
-            status={delivery.status}
-            onStatusChange={
-              user?.organizerRole === "supplier" ? (newStatus) => handleStatusChange(delivery.id, newStatus) : undefined
-            }
-          />
-        )
-      },
-    },
-    // Показывать колонку "Заказчик" только для роли "supplier"
-    ...(user?.organizerRole === "supplier"
-      ? [
-          {
-            accessorKey: "company",
-            header: "Заказчик",
-            cell: ({ row }) => {
-              const company = row.getValue("company") as SupplyResponse["company"]
-              return <div>{company.name}</div>
-            },
-          } as ColumnDef<SupplyResponse>,
-        ]
-      : []),
-    {
-      accessorKey: "total_price",
-      header: "Сумма",
-      cell: ({ row }) => {
-        const amount = row.getValue("total_price") as number
-        return <div className="font-medium">{amount.toFixed(2)} ₽</div>
-      },
-    },
-    {
-      id: "actions",
-      enableHiding: false,
-      cell: ({ row }) => {
-        const delivery = row.original
+  // Функция для просмотра детальной информации о поставке
+  const handleViewDelivery = async (deliveryId: number) => {
+    try {
+      console.log(`Fetching delivery details for ID: ${deliveryId}`)
 
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Открыть меню</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Действия</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => router.push(`/deliveries/${delivery.id}`)}>Просмотр</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )
+      if (!deliveryId || deliveryId === 0) {
+        toast({
+          title: "Ошибка",
+          description: "Некорректный ID поставки",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Получаем детальную информацию о поставке
+      const deliveryDetails = await suppliesService.getSupplyById(deliveryId)
+      console.log("Delivery details:", deliveryDetails)
+
+      // Перенаправляем на страницу просмотра с полученными данными
+      router.push(`/deliveries/${deliveryId}`)
+    } catch (error) {
+      console.error("Error fetching delivery details:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить детальную информацию о поставке",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Определение колонок таблицы
+  const columns: ColumnDef<SupplyResponse>[] = React.useMemo(
+    () => [
+      {
+        id: "select",
+        header: ({ table }) => {
+          const validDeliveries = deliveries.filter((d) => d.id != null && d.id !== 0)
+          return (
+            <Checkbox
+              checked={
+                validDeliveries.length > 0 && selectedRows.length > 0 && selectedRows.length === validDeliveries.length
+              }
+              onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+              aria-label="Выбрать все"
+            />
+          )
+        },
+        cell: ({ row }) => {
+          const deliveryId = row.original.id
+          if (deliveryId == null || deliveryId === 0) return null
+
+          return (
+            <Checkbox
+              checked={selectedRows.includes(String(deliveryId))}
+              onCheckedChange={(checked) => handleSelectRow(String(deliveryId), checked as boolean)}
+              aria-label="Выбрать строку"
+            />
+          )
+        },
+        enableSorting: false,
+        enableHiding: false,
       },
-    },
-  ]
+      {
+        accessorKey: "article",
+        header: "Номер",
+        cell: ({ row }) => <div className="font-medium">#{row.getValue("article")}</div>,
+      },
+      // Показывать колонку "Поставщик" только для роли "company"
+      ...(user?.organizerRole === "company"
+        ? [
+            {
+              accessorKey: "supplier",
+              header: ({ column }) => {
+                return (
+                  <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+                    Поставщик
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                )
+              },
+              cell: ({ row }) => {
+                const supplier = row.getValue("supplier") as SupplyResponse["supplier"]
+                return <div>{supplier.name}</div>
+              },
+            } as ColumnDef<SupplyResponse>,
+          ]
+        : []),
+      {
+        accessorKey: "delivery_address",
+        header: "Адрес доставки",
+        cell: ({ row }) => {
+          const address = row.getValue("delivery_address") as string
+          return (
+            <div className="max-w-[150px] truncate" title={address}>
+              {address}
+            </div>
+          )
+        },
+      },
+      {
+        accessorKey: "supply_products",
+        header: "Товары",
+        cell: ({ row }) => {
+          const products = row.getValue("supply_products") as SupplyResponse["supply_products"]
+          const productText = products.map((p) => `${p.product.name} (${p.quantity} шт.)`).join(", ")
+          return (
+            <div className="max-w-[200px] truncate" title={productText}>
+              {productText}
+            </div>
+          )
+        },
+      },
+      {
+        accessorKey: "status",
+        header: "Статус",
+        cell: ({ row }) => {
+          const delivery = row.original
+          return (
+            <StatusBadge
+              status={delivery.status}
+              onStatusChange={
+                user?.organizerRole === "supplier"
+                  ? (newStatus) => handleStatusChange(delivery.id, newStatus)
+                  : undefined
+              }
+            />
+          )
+        },
+      },
+      // Показывать колонку "Заказчик" только для роли "supplier"
+      ...(user?.organizerRole === "supplier"
+        ? [
+            {
+              accessorKey: "company",
+              header: "Заказчик",
+              cell: ({ row }) => {
+                const company = row.getValue("company") as SupplyResponse["company"]
+                return <div>{company.name}</div>
+              },
+            } as ColumnDef<SupplyResponse>,
+          ]
+        : []),
+      {
+        accessorKey: "total_price",
+        header: "Сумма",
+        cell: ({ row }) => {
+          const amount = row.getValue("total_price") as number
+          return <div className="font-medium">{amount.toFixed(2)} ₽</div>
+        },
+      },
+      {
+        id: "actions",
+        enableHiding: false,
+        cell: ({ row }) => {
+          const delivery = row.original
+
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Открыть меню</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Действия</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => handleViewDelivery(delivery.id)}
+                  disabled={!delivery.id || delivery.id === 0}
+                >
+                  Просмотр
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
+        },
+      },
+    ],
+    [user?.organizerRole, selectedRows, deliveries, handleSelectAll, handleSelectRow],
+  )
 
   const table = useReactTable({
     data: deliveries,
@@ -419,9 +474,16 @@ export function DeliveriesTable() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleSelectAll(selectedRows.length !== deliveries.length)}
+            onClick={() => {
+              const validDeliveries = deliveries.filter((d) => d.id != null && d.id !== 0)
+              const shouldSelectAll = selectedRows.length !== validDeliveries.length || selectedRows.length === 0
+              handleSelectAll(shouldSelectAll)
+            }}
           >
-            {selectedRows.length === deliveries.length ? "Снять выбор" : "Выбрать все"}
+            {selectedRows.length > 0 &&
+            selectedRows.length === deliveries.filter((d) => d.id != null && d.id !== 0).length
+              ? "Снять выбор"
+              : "Выбрать все"}
           </Button>
           <span className="text-sm text-muted-foreground">
             {selectedRows.length > 0 ? `Выбрано: ${selectedRows.length}` : ""}
