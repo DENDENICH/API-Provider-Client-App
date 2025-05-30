@@ -14,6 +14,9 @@ import {
   useReactTable,
 } from "@tanstack/react-table"
 import { ArrowUpDown, ChevronDown, MoreHorizontal } from "lucide-react"
+// Удалите эти строки:
+// import jsPDF from "jspdf"
+// import { font } from "./fonts/PTSans-Regular-normal"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -175,7 +178,7 @@ export function DeliveriesTable() {
     })
   }, [])
 
-  // Функция для скачивания накладной
+  // Функция для скачивания накладной в PDF формате
   const handleDownloadInvoice = () => {
     if (selectedRows.length === 0) {
       toast({
@@ -190,37 +193,129 @@ export function DeliveriesTable() {
       (delivery) => delivery.id != null && selectedRows.includes(String(delivery.id)),
     )
 
-    let invoiceText = "НАКЛАДНАЯ\n\n"
-    invoiceText += `Дата: ${new Date().toLocaleDateString("ru-RU")}\n`
-    invoiceText += `Номер: INV-${Math.floor(Math.random() * 10000)}\n\n`
-    invoiceText += "Список поставок:\n"
+    try {
+      // Создаем HTML-контент для накладной
+      const currentDate = new Date().toLocaleDateString("ru-RU")
+      const invoiceNumber = `INV-${Math.floor(Math.random() * 10000)}`
+      const totalAmount = selectedDeliveries.reduce((sum, delivery) => sum + delivery.total_price, 0)
 
-    selectedDeliveries.forEach((delivery, index) => {
-      invoiceText += `${index + 1}. Поставка #${delivery.article}\n`
-      invoiceText += `   Поставщик: ${delivery.supplier.name}\n`
-      invoiceText += `   Адрес доставки: ${delivery.delivery_address}\n`
-      invoiceText += `   Товары: ${delivery.supply_products.map((p) => `${p.product.name} (${p.quantity} шт.)`).join(", ")}\n`
-      invoiceText += `   Сумма: ${delivery.total_price.toFixed(2)} ₽\n\n`
-    })
+      const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Накладная ${invoiceNumber}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.4;
+          }
+          .header {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 30px;
+          }
+          .info {
+            margin-bottom: 20px;
+          }
+          .delivery-item {
+            margin-bottom: 20px;
+            padding: 10px;
+            border-left: 3px solid #ccc;
+          }
+          .delivery-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+          }
+          .delivery-details {
+            margin-left: 15px;
+          }
+          .total {
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 30px;
+            padding-top: 10px;
+            border-top: 2px solid #000;
+          }
+          .signature {
+            margin-top: 50px;
+          }
+          @media print {
+            body { margin: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">НАКЛАДНАЯ</div>
+        
+        <div class="info">
+          <div><strong>Дата:</strong> ${currentDate}</div>
+          <div><strong>Номер:</strong> ${invoiceNumber}</div>
+        </div>
+        
+        <div style="font-size: 18px; font-weight: bold; margin: 20px 0;">Список поставок:</div>
+        
+        ${selectedDeliveries
+          .map(
+            (delivery, index) => `
+          <div class="delivery-item">
+            <div class="delivery-title">${index + 1}. Поставка #${delivery.article}</div>
+            <div class="delivery-details">
+              <div><strong>Поставщик:</strong> ${delivery.supplier.name}</div>
+              <div><strong>Адрес доставки:</strong> ${delivery.delivery_address}</div>
+              <div><strong>Товары:</strong> ${delivery.supply_products.map((p) => `${p.product.name} (${p.quantity} шт.)`).join(", ")}</div>
+              <div><strong>Сумма:</strong> ${delivery.total_price.toFixed(2)} ₽</div>
+            </div>
+          </div>
+        `,
+          )
+          .join("")}
+        
+        <div class="total">
+          Общая сумма: ${totalAmount.toFixed(2)} ₽
+        </div>
+        
+        <div class="signature">
+          Подпись: ___________________
+        </div>
+      </body>
+      </html>
+    `
 
-    const totalAmount = selectedDeliveries.reduce((sum, delivery) => sum + delivery.total_price, 0)
-    invoiceText += `Общая сумма: ${totalAmount.toFixed(2)} ₽\n\n`
-    invoiceText += "Подпись: ___________________"
+      // Создаем новое окно для печати
+      const printWindow = window.open("", "_blank")
+      if (printWindow) {
+        printWindow.document.write(htmlContent)
+        printWindow.document.close()
 
-    const blob = new Blob([invoiceText], { type: "text/plain" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `Накладная_${new Date().toISOString().slice(0, 10)}.txt`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+        // Ждем загрузки контента и запускаем печать
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print()
+            // Закрываем окно после печати (опционально)
+            printWindow.onafterprint = () => {
+              printWindow.close()
+            }
+          }, 500)
+        }
 
-    toast({
-      title: "Успех",
-      description: "Накладная успешно сформирована и скачана",
-    })
+        toast({
+          title: "Успех",
+          description: "Накладная открыта для печати. Вы можете сохранить её как PDF через диалог печати.",
+        })
+      } else {
+        throw new Error("Не удалось открыть окно печати")
+      }
+    } catch (error) {
+      console.error("Error generating invoice:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось сформировать накладную",
+        variant: "destructive",
+      })
+    }
   }
 
   // Функция для изменения статуса поставки (PATCH /supplies/{supply_id}/status)
