@@ -30,116 +30,28 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
-// Добавить импорт Checkbox в начало файла
 import { Checkbox } from "@/components/ui/checkbox"
-
-// Типы данных
-// Изменить тип Delivery, добавив поле для выбора
-type Delivery = {
-  id: string
-  number: string
-  supplier: string
-  orderDate: string
-  products: string
-  status: "processing" | "collected" | "delivering" | "delivered" | "accepted" | "canceled"
-  customer: string
-  courier: string
-  address: string
-  deliveryDate: string
-  amount: string
-  receipt?: string
-  selected?: boolean // Новое поле для отслеживания выбора
-}
-
-// Обновленные данные для косметологической студии
-const data: Delivery[] = [
-  {
-    id: "1",
-    number: "12345",
-    supplier: "L'Oréal Professional",
-    orderDate: "2023-05-01",
-    products: "Шампунь для окрашенных волос (10 шт.), Маска для волос (5 шт.)",
-    status: "processing",
-    customer: "Иванова А.С.",
-    courier: "Петров П.П. +7(999)123-45-67",
-    address: "г. Москва, ул. Ленина, д. 10",
-    deliveryDate: "2023-05-05",
-    amount: "15000 ₽",
-  },
-  {
-    id: "2",
-    number: "12344",
-    supplier: "Clarins",
-    orderDate: "2023-05-02",
-    products: "Крем для лица (8 шт.), Сыворотка антивозрастная (5 шт.)",
-    status: "collected",
-    customer: "Сидорова Е.В.",
-    courier: "Кузнецов К.К. +7(999)765-43-21",
-    address: "г. Москва, ул. Пушкина, д. 15",
-    deliveryDate: "2023-05-06",
-    amount: "25000 ₽",
-  },
-  {
-    id: "3",
-    number: "12343",
-    supplier: "Gehwol",
-    orderDate: "2023-05-03",
-    products: "Крем для ног (15 шт.), Масло для ногтей (10 шт.)",
-    status: "delivering",
-    customer: "Петрова П.П.",
-    courier: "Иванов И.И. +7(999)111-22-33",
-    address: "г. Москва, ул. Гагарина, д. 20",
-    deliveryDate: "2023-05-07",
-    amount: "12000 ₽",
-  },
-  {
-    id: "4",
-    number: "12342",
-    supplier: "Janssen Cosmetics",
-    orderDate: "2023-05-04",
-    products: "Пилинг для лица (5 шт.), Альгинатная маска (10 шт.)",
-    status: "delivered",
-    customer: "Кузнецова К.К.",
-    courier: "Сидоров С.С. +7(999)444-55-66",
-    address: "г. Москва, ул. Королева, д. 25",
-    deliveryDate: "2023-05-08",
-    amount: "18000 ₽",
-    receipt: "чек-12342.pdf",
-  },
-  {
-    id: "5",
-    number: "12341",
-    supplier: "Kérastase",
-    orderDate: "2023-05-05",
-    products: "Термозащита для волос (12 шт.), Масло для волос (8 шт.)",
-    status: "accepted",
-    customer: "Иванова И.И.",
-    courier: "Петрова П.П. +7(999)777-88-99",
-    address: "г. Москва, ул. Циолковского, д. 30",
-    deliveryDate: "2023-05-09",
-    amount: "22000 ₽",
-    receipt: "чек-12341.pdf",
-  },
-]
+import { suppliesService } from "@/lib/api-services"
+import type { SupplyResponse } from "@/lib/api-types"
+import { useToast } from "@/hooks/use-toast"
 
 // Функция для отображения статуса
 function StatusBadge({
   status,
   onStatusChange,
-}: { status: Delivery["status"]; onStatusChange?: (newStatus: Delivery["status"]) => void }) {
+}: {
+  status: SupplyResponse["status"]
+  onStatusChange?: (newStatus: SupplyResponse["status"]) => void
+}) {
   let badgeContent
   let badgeClass
 
   switch (status) {
-    case "processing":
-      badgeContent = "В обработке"
-      badgeClass = "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
-      break
-    case "collected":
+    case "assembled":
       badgeContent = "Собран"
       badgeClass = "bg-blue-100 text-blue-800 hover:bg-blue-100"
       break
-    case "delivering":
+    case "in_delivery":
       badgeContent = "В доставке"
       badgeClass = "bg-orange-100 text-orange-800 hover:bg-orange-100"
       break
@@ -147,11 +59,11 @@ function StatusBadge({
       badgeContent = "Доставлен"
       badgeClass = "bg-green-100 text-green-800 hover:bg-green-100"
       break
-    case "accepted":
+    case "adopted":
       badgeContent = "Принят"
       badgeClass = "bg-green-500 text-white hover:bg-green-600"
       break
-    case "canceled":
+    case "cancelled":
       badgeContent = "Отменен"
       badgeClass = "bg-red-100 text-red-800 hover:bg-red-100"
       break
@@ -170,12 +82,11 @@ function StatusBadge({
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Изменить статус</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => onStatusChange("processing")}>В обработке</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onStatusChange("collected")}>Собран</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onStatusChange("delivering")}>В доставке</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onStatusChange("assembled")}>Собран</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onStatusChange("in_delivery")}>В доставке</DropdownMenuItem>
           <DropdownMenuItem onClick={() => onStatusChange("delivered")}>Доставлен</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onStatusChange("accepted")}>Принят</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onStatusChange("canceled")}>Отменен</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onStatusChange("adopted")}>Принят</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onStatusChange("cancelled")}>Отменен</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     )
@@ -188,73 +99,102 @@ function StatusBadge({
   )
 }
 
-// Добавить в начало функции DeliveriesTable новые состояния для выбора строк
 export function DeliveriesTable() {
-  const { role } = useAuth()
+  const { user } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
-  const [deliveries, setDeliveries] = React.useState<Delivery[]>(data)
-  const [selectedRows, setSelectedRows] = React.useState<string[]>([]) // Новое состояние для выбранных строк
+  const [deliveries, setDeliveries] = React.useState<SupplyResponse[]>([])
+  const [selectedRows, setSelectedRows] = React.useState<string[]>([])
+  const [isLoading, setIsLoading] = React.useState(true)
 
-  // Добавить функцию для обработки выбора всех строк
+  // Загрузка поставок из API
+  const fetchDeliveries = React.useCallback(async () => {
+    try {
+      setIsLoading(true)
+      console.log("Fetching deliveries from API...")
+
+      let response
+      if (user?.organizerRole === "supplier") {
+        // Для поставщиков получаем поставки, ожидающие подтверждения
+        response = await suppliesService.getSupplies(true)
+      } else {
+        // Для компаний получаем все поставки без параметра
+        response = await suppliesService.getSupplies()
+      }
+
+      console.log("Deliveries API response:", response)
+      setDeliveries(response.supplies || [])
+    } catch (error) {
+      console.error("Error fetching deliveries:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить поставки",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }, [toast, user?.organizerRole])
+
+  React.useEffect(() => {
+    fetchDeliveries()
+  }, [fetchDeliveries])
+
+  // Функция для обработки выбора всех строк
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      // Выбрать все строки
-      const allIds = deliveries.map((delivery) => delivery.id)
+      const allIds = deliveries.filter((delivery) => delivery.id).map((delivery) => delivery.id.toString())
       setSelectedRows(allIds)
     } else {
-      // Снять выбор со всех строк
       setSelectedRows([])
     }
   }
 
-  // Добавить функцию для обработки выбора отдельной строки
+  // Функция для обработки выбора отдельной строки
   const handleSelectRow = (id: string, checked: boolean) => {
     if (checked) {
-      // Добавить строку к выбранным
       setSelectedRows((prev) => [...prev, id])
     } else {
-      // Удалить строку из выбранных
       setSelectedRows((prev) => prev.filter((rowId) => rowId !== id))
     }
   }
 
-  // Добавить функцию для симуляции скачивания накладной
+  // Функция для скачивания накладной
   const handleDownloadInvoice = () => {
     if (selectedRows.length === 0) {
-      alert("Пожалуйста, выберите хотя бы одну поставку для формирования накладной")
+      toast({
+        title: "Предупреждение",
+        description: "Пожалуйста, выберите хотя бы одну поставку для формирования накладной",
+        variant: "destructive",
+      })
       return
     }
 
-    // Получить выбранные поставки
-    const selectedDeliveries = deliveries.filter((delivery) => selectedRows.includes(delivery.id))
+    const selectedDeliveries = deliveries.filter(
+      (delivery) => delivery.id && selectedRows.includes(delivery.id.toString()),
+    )
 
-    // Сформировать текст накладной (в реальном приложении здесь будет генерация PDF или другого формата)
     let invoiceText = "НАКЛАДНАЯ\n\n"
     invoiceText += `Дата: ${new Date().toLocaleDateString("ru-RU")}\n`
     invoiceText += `Номер: INV-${Math.floor(Math.random() * 10000)}\n\n`
     invoiceText += "Список поставок:\n"
 
     selectedDeliveries.forEach((delivery, index) => {
-      invoiceText += `${index + 1}. Поставка #${delivery.number} от ${new Date(delivery.orderDate).toLocaleDateString("ru-RU")}\n`
-      invoiceText += `   Поставщик: ${delivery.supplier}\n`
-      invoiceText += `   Товары: ${delivery.products}\n`
-      invoiceText += `   Сумма: ${delivery.amount}\n\n`
+      invoiceText += `${index + 1}. Поставка #${delivery.article}\n`
+      invoiceText += `   Поставщик: ${delivery.supplier.name}\n`
+      invoiceText += `   Адрес доставки: ${delivery.delivery_address}\n`
+      invoiceText += `   Товары: ${delivery.supply_products.map((p) => `${p.product.name} (${p.quantity} шт.)`).join(", ")}\n`
+      invoiceText += `   Сумма: ${delivery.total_price.toFixed(2)} ₽\n\n`
     })
 
-    invoiceText += `Общая сумма: ${selectedDeliveries
-      .reduce((sum, delivery) => {
-        const amount = Number.parseFloat(delivery.amount.replace(/[^\d.]/g, ""))
-        return sum + amount
-      }, 0)
-      .toFixed(2)} ₽\n\n`
-
+    const totalAmount = selectedDeliveries.reduce((sum, delivery) => sum + delivery.total_price, 0)
+    invoiceText += `Общая сумма: ${totalAmount.toFixed(2)} ₽\n\n`
     invoiceText += "Подпись: ___________________"
 
-    // Создать и скачать файл
     const blob = new Blob([invoiceText], { type: "text/plain" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
@@ -265,24 +205,43 @@ export function DeliveriesTable() {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
 
-    // Сообщение об успешном скачивании
-    alert("Накладная успешно сформирована и скачана")
+    toast({
+      title: "Успех",
+      description: "Накладная успешно сформирована и скачана",
+    })
   }
 
-  const handleStatusChange = (id: string, newStatus: Delivery["status"]) => {
-    setDeliveries((prev) =>
-      prev.map((delivery) => {
-        if (delivery.id === id) {
-          return { ...delivery, status: newStatus }
-        }
-        return delivery
-      }),
-    )
-    alert(`Статус поставки #${id} изменен на "${newStatus}"`)
+  // Функция для изменения статуса поставки
+  const handleStatusChange = async (id: number, newStatus: SupplyResponse["status"]) => {
+    try {
+      await suppliesService.updateSupplyStatus(id, { status: newStatus })
+
+      // Обновляем локальное состояние
+      setDeliveries((prev) =>
+        prev.map((delivery) => {
+          if (delivery.id === id) {
+            return { ...delivery, status: newStatus }
+          }
+          return delivery
+        }),
+      )
+
+      toast({
+        title: "Успех",
+        description: `Статус поставки #${id} изменен на "${newStatus}"`,
+      })
+    } catch (error) {
+      console.error("Error updating supply status:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось изменить статус поставки",
+        variant: "destructive",
+      })
+    }
   }
 
-  // Добавить колонку с чекбоксами в начало массива columns
-  const columns: ColumnDef<Delivery>[] = [
+  // Определение колонок таблицы
+  const columns: ColumnDef<SupplyResponse>[] = [
     {
       id: "select",
       header: ({ table }) => (
@@ -294,8 +253,10 @@ export function DeliveriesTable() {
       ),
       cell: ({ row }) => (
         <Checkbox
-          checked={selectedRows.includes(row.original.id)}
-          onCheckedChange={(checked) => handleSelectRow(row.original.id, checked as boolean)}
+          checked={row.original.id ? selectedRows.includes(row.original.id.toString()) : false}
+          onCheckedChange={(checked) =>
+            row.original.id ? handleSelectRow(row.original.id.toString(), checked as boolean) : undefined
+          }
           aria-label="Выбрать строку"
         />
       ),
@@ -303,12 +264,12 @@ export function DeliveriesTable() {
       enableHiding: false,
     },
     {
-      accessorKey: "number",
+      accessorKey: "article",
       header: "Номер",
-      cell: ({ row }) => <div className="font-medium">#{row.getValue("number")}</div>,
+      cell: ({ row }) => <div className="font-medium">#{row.getValue("article")}</div>,
     },
     // Показывать колонку "Поставщик" только для роли "company"
-    ...(role === "company"
+    ...(user?.organizerRole === "company"
       ? [
           {
             accessorKey: "supplier",
@@ -320,26 +281,37 @@ export function DeliveriesTable() {
                 </Button>
               )
             },
-            cell: ({ row }) => <div>{row.getValue("supplier")}</div>,
-          } as ColumnDef<Delivery>,
+            cell: ({ row }) => {
+              const supplier = row.getValue("supplier") as SupplyResponse["supplier"]
+              return <div>{supplier.name}</div>
+            },
+          } as ColumnDef<SupplyResponse>,
         ]
       : []),
     {
-      accessorKey: "orderDate",
-      header: "Дата заказа",
+      accessorKey: "delivery_address",
+      header: "Адрес доставки",
       cell: ({ row }) => {
-        const date = new Date(row.getValue("orderDate"))
-        return <div>{date.toLocaleDateString("ru-RU")}</div>
+        const address = row.getValue("delivery_address") as string
+        return (
+          <div className="max-w-[150px] truncate" title={address}>
+            {address}
+          </div>
+        )
       },
     },
     {
-      accessorKey: "products",
+      accessorKey: "supply_products",
       header: "Товары",
-      cell: ({ row }) => (
-        <div className="max-w-[200px] truncate" title={row.getValue("products")}>
-          {row.getValue("products")}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const products = row.getValue("supply_products") as SupplyResponse["supply_products"]
+        const productText = products.map((p) => `${p.product.name} (${p.quantity} шт.)`).join(", ")
+        return (
+          <div className="max-w-[200px] truncate" title={productText}>
+            {productText}
+          </div>
+        )
+      },
     },
     {
       accessorKey: "status",
@@ -349,25 +321,33 @@ export function DeliveriesTable() {
         return (
           <StatusBadge
             status={delivery.status}
-            onStatusChange={role === "supplier" ? (newStatus) => handleStatusChange(delivery.id, newStatus) : undefined}
+            onStatusChange={
+              user?.organizerRole === "supplier" ? (newStatus) => handleStatusChange(delivery.id, newStatus) : undefined
+            }
           />
         )
       },
     },
     // Показывать колонку "Заказчик" только для роли "supplier"
-    ...(role === "supplier"
+    ...(user?.organizerRole === "supplier"
       ? [
           {
-            accessorKey: "customer",
+            accessorKey: "company",
             header: "Заказчик",
-            cell: ({ row }) => <div>{row.getValue("customer")}</div>,
-          } as ColumnDef<Delivery>,
+            cell: ({ row }) => {
+              const company = row.getValue("company") as SupplyResponse["company"]
+              return <div>{company.name}</div>
+            },
+          } as ColumnDef<SupplyResponse>,
         ]
       : []),
     {
-      accessorKey: "amount",
+      accessorKey: "total_price",
       header: "Сумма",
-      cell: ({ row }) => <div className="font-medium">{row.getValue("amount")}</div>,
+      cell: ({ row }) => {
+        const amount = row.getValue("total_price") as number
+        return <div className="font-medium">{amount.toFixed(2)} ₽</div>
+      },
     },
     {
       id: "actions",
@@ -412,13 +392,26 @@ export function DeliveriesTable() {
     },
   })
 
+  if (isLoading) {
+    return (
+      <div className="w-full">
+        <div className="flex items-center justify-center py-10">
+          <div className="text-center">
+            <div className="text-lg font-medium">Загрузка поставок...</div>
+            <div className="text-sm text-muted-foreground mt-2">Пожалуйста, подождите</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="w-full">
       <div className="flex items-center py-4">
         <Input
           placeholder="Поиск по номеру..."
-          value={(table.getColumn("number")?.getFilterValue() as string) ?? ""}
-          onChange={(event) => table.getColumn("number")?.setFilterValue(event.target.value)}
+          value={(table.getColumn("article")?.getFilterValue() as string) ?? ""}
+          onChange={(event) => table.getColumn("article")?.setFilterValue(event.target.value)}
           className="max-w-sm"
         />
 
@@ -453,19 +446,19 @@ export function DeliveriesTable() {
                     checked={column.getIsVisible()}
                     onCheckedChange={(value) => column.toggleVisibility(!!value)}
                   >
-                    {column.id === "number"
+                    {column.id === "article"
                       ? "Номер"
                       : column.id === "supplier"
                         ? "Поставщик"
-                        : column.id === "orderDate"
-                          ? "Дата заказа"
-                          : column.id === "products"
+                        : column.id === "delivery_address"
+                          ? "Адрес доставки"
+                          : column.id === "supply_products"
                             ? "Товары"
                             : column.id === "status"
                               ? "Статус"
-                              : column.id === "customer"
+                              : column.id === "company"
                                 ? "Заказчик"
-                                : column.id === "amount"
+                                : column.id === "total_price"
                                   ? "Сумма"
                                   : column.id}
                   </DropdownMenuCheckboxItem>

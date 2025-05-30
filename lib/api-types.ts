@@ -27,7 +27,7 @@ export interface AuthResponseAfterLogin {
   access_token: string
   type_token: string
   role_organizer: "company" | "supplier" | "not_have_organizer"
-  user_role: "admin" | "manager" | "employee"
+  user_type: "admin" | "manager" | "employee"
 }
 
 // Типы для пользователей
@@ -115,7 +115,7 @@ export interface ProductsResponse {
   products: ProductResponse[]
 }
 
-// Типы для поставок
+// Типы для поставок (ОБНОВЛЕНО)
 export type SupplyStatus = "assembled" | "in_delivery" | "adopted" | "delivered" | "cancelled"
 
 export interface SupplyCreateRequest {
@@ -150,13 +150,10 @@ export interface SupplyResponse {
     product: ProductResponseSupply
     quantity: number
   }>
-  couriers_phone: string
   article: number
   delivery_address: string
   total_price: number
   status: SupplyStatus
-  create_datetime: string
-  delivery_datetime: string
 }
 
 export interface SuppliesResponse {
