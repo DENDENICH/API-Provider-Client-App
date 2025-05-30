@@ -18,103 +18,12 @@ import { ArrowUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-
-// Типы данных
-type Product = {
-  id: string
-  name: string
-  category: string
-  articleNumber: string
-  supplier: string
-  price: string
-}
-
-// Примерные данные
-const data: Product[] = [
-  {
-    id: "1",
-    name: "Шампунь для окрашенных волос",
-    category: "Уход за волосами",
-    articleNumber: "SH-1001",
-    supplier: "L'Oréal Professional",
-    price: "1200 ₽",
-  },
-  {
-    id: "2",
-    name: "Маска для волос",
-    category: "Уход за волосами",
-    articleNumber: "MH-2002",
-    supplier: "Kérastase",
-    price: "1800 ₽",
-  },
-  {
-    id: "3",
-    name: "Крем для лица",
-    category: "Уход за волосами",
-    articleNumber: "CF-3003",
-    supplier: "Clarins",
-    price: "2500 ₽",
-  },
-  {
-    id: "4",
-    name: "Сыворотка антивозрастная",
-    category: "Уход за волосами",
-    articleNumber: "SA-4004",
-    supplier: "Janssen Cosmetics",
-    price: "3200 ₽",
-  },
-  {
-    id: "5",
-    name: "Крем для ног",
-    category: "Маникюр и педикюр",
-    articleNumber: "CF-5005",
-    supplier: "Gehwol",
-    price: "950 ₽",
-  },
-  {
-    id: "6",
-    name: "Масло для ногтей",
-    category: "Маникюр и педикюр",
-    articleNumber: "NO-6006",
-    supplier: "Gehwol",
-    price: "750 ₽",
-  },
-  {
-    id: "7",
-    name: "Пилинг для лица",
-    category: "Уход за волосами",
-    articleNumber: "PF-7007",
-    supplier: "Janssen Cosmetics",
-    price: "1900 ₽",
-  },
-  {
-    id: "8",
-    name: "Альгинатная маска",
-    category: "Уход за волосами",
-    articleNumber: "AM-8008",
-    supplier: "Janssen Cosmetics",
-    price: "1500 ₽",
-  },
-  {
-    id: "9",
-    name: "Термозащита для волос",
-    category: "Стайлинг для волос",
-    articleNumber: "TH-9009",
-    supplier: "L'Oréal Professional",
-    price: "1100 ₽",
-  },
-  {
-    id: "10",
-    name: "Масло для волос",
-    category: "Уход за волосами",
-    articleNumber: "OH-1010",
-    supplier: "Kérastase",
-    price: "2200 ₽",
-  },
-]
+import { productsService } from "@/lib/api-services"
+import type { ProductResponse } from "@/lib/api-types"
+import { useToast } from "@/hooks/use-toast"
 
 // Определение колонок
-export const columns: ColumnDef<Product>[] = [
+export const columns: ColumnDef<ProductResponse>[] = [
   {
     accessorKey: "name",
     header: ({ column }) => {
@@ -130,17 +39,31 @@ export const columns: ColumnDef<Product>[] = [
   {
     accessorKey: "category",
     header: "Категория",
-    cell: ({ row }) => <div>{row.getValue("category")}</div>,
+    cell: ({ row }) => {
+      const category = row.getValue("category") as string
+      // Преобразуем категории из API в читаемый вид
+      const categoryMap: Record<string, string> = {
+        hair_coloring: "Окрашивание волос",
+        hair_care: "Уход за волосами",
+        hair_styling: "Стайлинг для волос",
+        consumables: "Расходники",
+        perming: "Химическая завивка",
+        eyebrows: "Брови",
+        manicure_and_pedicure: "Маникюр и педикюр",
+        tools_and_equipment: "Инструменты и оборудование",
+      }
+      return <div>{categoryMap[category] || category}</div>
+    },
   },
   {
-    accessorKey: "articleNumber",
+    accessorKey: "article",
     header: "Артикул",
-    cell: ({ row }) => <div>{row.getValue("articleNumber")}</div>,
+    cell: ({ row }) => <div>{row.getValue("article")}</div>,
   },
   {
-    accessorKey: "supplier",
+    accessorKey: "organizer_name",
     header: "Поставщик",
-    cell: ({ row }) => <div>{row.getValue("supplier")}</div>,
+    cell: ({ row }) => <div>{row.getValue("organizer_name")}</div>,
   },
   {
     accessorKey: "price",
@@ -152,18 +75,76 @@ export const columns: ColumnDef<Product>[] = [
         </Button>
       )
     },
-    cell: ({ row }) => <div className="font-medium">{row.getValue("price")}</div>,
+    cell: ({ row }) => {
+      const price = Number.parseFloat(row.getValue("price"))
+      const formatted = new Intl.NumberFormat("ru-RU", {
+        style: "currency",
+        currency: "RUB",
+      }).format(price)
+      return <div className="font-medium">{formatted}</div>
+    },
+  },
+  {
+    accessorKey: "quantity",
+    header: "В наличии",
+    cell: ({ row }) => {
+      const quantity = row.getValue("quantity") as number | null
+      if (quantity === null || quantity === undefined) {
+        return <div className="text-muted-foreground">—</div>
+      }
+      return (
+        <div className={`font-medium ${quantity === 0 ? "text-red-500" : quantity < 10 ? "text-yellow-500" : ""}`}>
+          {quantity} шт.
+        </div>
+      )
+    },
   },
 ]
 
 export function ProductsTable() {
+  const { toast } = useToast()
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
 
+  // Состояние для данных
+  const [products, setProducts] = React.useState<ProductResponse[]>([])
+  const [isLoading, setIsLoading] = React.useState(true)
+
+  // Загрузка товаров при монтировании компонента
+  React.useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setIsLoading(true)
+        console.log("Fetching products from API...")
+
+        const response = await productsService.getProducts(undefined, true) // addQuantity = true для получения количества
+        console.log("Products API response:", response)
+
+        setProducts(response.products)
+
+        toast({
+          title: "Товары загружены",
+          description: `Загружено ${response.products.length} товаров`,
+        })
+      } catch (error) {
+        console.error("Error fetching products:", error)
+        toast({
+          title: "Ошибка загрузки",
+          description: "Не удалось загрузить список товаров",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchProducts()
+  }, [toast])
+
   const table = useReactTable({
-    data,
+    data: products,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -180,6 +161,21 @@ export function ProductsTable() {
       rowSelection,
     },
   })
+
+  if (isLoading) {
+    return (
+      <div className="w-full">
+        <div className="flex items-center py-4">
+          <Input placeholder="Поиск по названию..." disabled className="max-w-sm" />
+        </div>
+        <div className="rounded-md border">
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full">

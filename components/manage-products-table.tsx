@@ -22,85 +22,63 @@ import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Icons } from "@/components/icons"
-
-// Типы данных для товара
-// TODO: Обновить типы в соответствии с API бэкенда
-type Product = {
-  id: string
-  name: string
-  category: string
-  articleNumber: string
-  price: string
-  stock: number
-}
-
-// Примерные данные для демонстрации
-// TODO: Заменить на получение данных с сервера
-const data: Product[] = [
-  {
-    id: "1",
-    name: "Шампунь для окрашенных волос",
-    category: "Уход за волосами",
-    articleNumber: "SH-1001",
-    price: "1200.00 ₽",
-    stock: 45,
-  },
-  {
-    id: "2",
-    name: "Маска для волос",
-    category: "Уход за волосами",
-    articleNumber: "MH-2002",
-    price: "1800.00 ₽",
-    stock: 30,
-  },
-  {
-    id: "3",
-    name: "Крем для лица",
-    category: "Уход за кожей",
-    articleNumber: "CF-3003",
-    price: "2500.00 ₽",
-    stock: 20,
-  },
-  {
-    id: "4",
-    name: "Сыворотка антивозрастная",
-    category: "Уход за кожей",
-    articleNumber: "SA-4004",
-    price: "3200.00 ₽",
-    stock: 15,
-  },
-  {
-    id: "5",
-    name: "Крем для ног",
-    category: "Маникюр и педикюр",
-    articleNumber: "CF-5005",
-    price: "950.00 ₽",
-    stock: 50,
-  },
-  // ... другие товары
-]
+import { productsService } from "@/lib/api-services"
+import type { ProductResponse } from "@/lib/api-types"
+import { useToast } from "@/hooks/use-toast"
 
 export function ManageProductsTable() {
   const router = useRouter()
+  const { toast } = useToast()
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
 
-  // Состояние для хранения списка товаров
-  // TODO: Заменить на получение данных с сервера через useEffect
-  const [products, setProducts] = React.useState<Product[]>(data)
+  // Состояние для данных
+  const [products, setProducts] = React.useState<ProductResponse[]>([])
+  const [isLoading, setIsLoading] = React.useState(true)
 
   // Состояние для модального окна редактирования количества
   const [isStockDialogOpen, setIsStockDialogOpen] = React.useState(false)
-  const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null)
+  const [selectedProduct, setSelectedProduct] = React.useState<ProductResponse | null>(null)
   const [newStockValue, setNewStockValue] = React.useState<number>(0)
   const [isUpdating, setIsUpdating] = React.useState(false)
 
+  // Загрузка товаров при монтировании компонента
+  React.useEffect(() => {
+    fetchProducts()
+  }, [])
+
+  const fetchProducts = async () => {
+    try {
+      setIsLoading(true)
+      console.log("Fetching products for management...")
+
+      const response = await productsService.getProducts(undefined, true) // addQuantity = true
+      console.log("Manage products API response:", response)
+
+      setProducts(response.products)
+
+      toast({
+        title: "Товары загружены",
+        description: `Загружено ${response.products.length} товаров`,
+      })
+    } catch (error) {
+      console.error("Error fetching products:", error)
+      toast({
+        title: "Ошибка загрузки",
+        description: "Не удалось загрузить список товаров",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // Функция для открытия модального окна редактирования количества
-  const handleOpenStockDialog = (product: Product) => {
+  const handleOpenStockDialog = (product: ProductResponse) => {
     setSelectedProduct(product)
-    setNewStockValue(product.stock)
+    setNewStockValue(product.quantity || 0)
     setIsStockDialogOpen(true)
   }
 
@@ -110,45 +88,62 @@ export function ManageProductsTable() {
 
     setIsUpdating(true)
     try {
-      // В реальном приложении здесь будет API-запрос
-      // Пример: await fetch(`/api/products/${selectedProduct.id}/stock`, {
-      //   method: 'PATCH',
-      //   body: JSON.stringify({ stock: newStockValue })
-      // })
+      console.log(`Updating stock for product ${selectedProduct.id} to ${newStockValue}`)
 
-      // Имитация задержки запроса
-      await new Promise((resolve) => setTimeout(resolve, 800))
-
-      // Обновляем список товаров
+      // В реальном приложении здесь будет API-запрос для обновления количества
+      // Пока что обновляем локально
       setProducts((prev) =>
-        prev.map((product) => (product.id === selectedProduct.id ? { ...product, stock: newStockValue } : product)),
+        prev.map((product) => (product.id === selectedProduct.id ? { ...product, quantity: newStockValue } : product)),
       )
 
-      // Закрываем модальное окно
+      toast({
+        title: "Количество обновлено",
+        description: `Количество товара "${selectedProduct.name}" изменено на ${newStockValue} шт.`,
+      })
+
       setIsStockDialogOpen(false)
       setSelectedProduct(null)
     } catch (error) {
-      console.error("Ошибка при обновлении количества товара:", error)
+      console.error("Error updating stock:", error)
+      toast({
+        title: "Ошибка обновления",
+        description: "Не удалось обновить количество товара",
+        variant: "destructive",
+      })
     } finally {
       setIsUpdating(false)
     }
   }
 
   // Функция для удаления товара
-  // TODO: Заменить на вызов API для удаления товара
-  const handleDeleteProduct = (id: string) => {
-    if (confirm(`Вы уверены, что хотите удалить товар?`)) {
-      // API запрос на удаление товара
-      // Пример: await fetch(`/api/products/${id}`, { method: 'DELETE' })
+  const handleDeleteProduct = async (product: ProductResponse) => {
+    if (!confirm(`Вы уверены, что хотите удалить товар "${product.name}"?`)) {
+      return
+    }
 
-      // Обновление UI после успешного удаления
-      setProducts((prev) => prev.filter((product) => product.id !== id))
-      alert(`Товар успешно удален`)
+    try {
+      console.log(`Deleting product ${product.id}`)
+
+      // В реальном приложении здесь будет API-запрос для удаления товара
+      // Пока что удаляем локально
+      setProducts((prev) => prev.filter((p) => p.id !== product.id))
+
+      toast({
+        title: "Товар удален",
+        description: `Товар "${product.name}" успешно удален`,
+      })
+    } catch (error) {
+      console.error("Error deleting product:", error)
+      toast({
+        title: "Ошибка удаления",
+        description: "Не удалось удалить товар",
+        variant: "destructive",
+      })
     }
   }
 
   // Определение колонок таблицы
-  const columns: ColumnDef<Product>[] = [
+  const columns: ColumnDef<ProductResponse>[] = [
     // Колонка с действиями (просмотр и удаление)
     {
       id: "actions",
@@ -171,7 +166,7 @@ export function ManageProductsTable() {
               variant="outline"
               size="icon"
               className="h-8 w-8 text-destructive"
-              onClick={() => handleDeleteProduct(product.id)}
+              onClick={() => handleDeleteProduct(product)}
               title="Удалить"
             >
               <Trash className="h-4 w-4" />
@@ -193,16 +188,28 @@ export function ManageProductsTable() {
       },
       cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
     },
-    // ... другие колонки
     {
       accessorKey: "category",
       header: "Категория",
-      cell: ({ row }) => <div>{row.getValue("category")}</div>,
+      cell: ({ row }) => {
+        const category = row.getValue("category") as string
+        const categoryMap: Record<string, string> = {
+          hair_coloring: "Окрашивание волос",
+          hair_care: "Уход за волосами",
+          hair_styling: "Стайлинг для волос",
+          consumables: "Расходники",
+          perming: "Химическая завивка",
+          eyebrows: "Брови",
+          manicure_and_pedicure: "Маникюр и педикюр",
+          tools_and_equipment: "Инструменты и оборудование",
+        }
+        return <div>{categoryMap[category] || category}</div>
+      },
     },
     {
-      accessorKey: "articleNumber",
+      accessorKey: "article",
       header: "Артикул",
-      cell: ({ row }) => <div>{row.getValue("articleNumber")}</div>,
+      cell: ({ row }) => <div>{row.getValue("article")}</div>,
     },
     {
       accessorKey: "price",
@@ -214,11 +221,18 @@ export function ManageProductsTable() {
           </Button>
         )
       },
-      cell: ({ row }) => <div className="font-medium">{row.getValue("price")}</div>,
+      cell: ({ row }) => {
+        const price = Number.parseFloat(row.getValue("price"))
+        const formatted = new Intl.NumberFormat("ru-RU", {
+          style: "currency",
+          currency: "RUB",
+        }).format(price)
+        return <div className="font-medium">{formatted}</div>
+      },
     },
     // Колонка с количеством товара на складе
     {
-      accessorKey: "stock",
+      accessorKey: "quantity",
       header: ({ column }) => {
         return (
           <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
@@ -228,15 +242,20 @@ export function ManageProductsTable() {
         )
       },
       cell: ({ row }) => {
-        const stock = Number.parseInt(row.getValue("stock"))
+        const quantity = row.getValue("quantity") as number | null
         const product = row.original
+
+        if (quantity === null || quantity === undefined) {
+          return <div className="text-muted-foreground">—</div>
+        }
+
         return (
           <Button
             variant="link"
-            className={`p-0 h-auto ${stock === 0 ? "text-red-500" : stock < 10 ? "text-yellow-500" : ""}`}
+            className={`p-0 h-auto ${quantity === 0 ? "text-red-500" : quantity < 10 ? "text-yellow-500" : ""}`}
             onClick={() => handleOpenStockDialog(product)}
           >
-            {stock} шт.
+            {quantity} шт.
           </Button>
         )
       },
@@ -262,6 +281,21 @@ export function ManageProductsTable() {
       rowSelection,
     },
   })
+
+  if (isLoading) {
+    return (
+      <div className="w-full">
+        <div className="flex items-center py-4">
+          <Input placeholder="Поиск по названию..." disabled className="max-w-sm" />
+        </div>
+        <div className="rounded-md border">
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // Рендер таблицы с товарами
   return (
@@ -350,7 +384,7 @@ export function ManageProductsTable() {
                     Артикул
                   </Label>
                   <div id="product-article" className="col-span-3">
-                    {selectedProduct.articleNumber}
+                    {selectedProduct.article}
                   </div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">

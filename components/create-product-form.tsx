@@ -13,6 +13,9 @@ import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Icons } from "@/components/icons"
 import { Textarea } from "@/components/ui/textarea"
+import { productsService } from "@/lib/api-services"
+import type { ProductRequest } from "@/lib/api-types"
+import { useToast } from "@/hooks/use-toast"
 
 // Компонент для ввода цены
 const PriceInput = React.forwardRef<
@@ -38,7 +41,10 @@ const PriceInput = React.forwardRef<
       }
     }
 
-    // Форматируем цену
+    // Обновляем значение в форме (только числовое значение)
+    onValueChange(value)
+
+    // Форматируем для отображения
     let formattedValue = value
     if (value) {
       // Если нет точки, добавляем .00
@@ -53,9 +59,6 @@ const PriceInput = React.forwardRef<
       // Добавляем символ рубля
       formattedValue = formattedValue + " ₽"
     }
-
-    // Обновляем значение в форме
-    onValueChange(value)
 
     // Устанавливаем отформатированное значение в поле ввода
     e.target.value = formattedValue
@@ -76,7 +79,7 @@ const formSchema = z.object({
   price: z.string().min(1, {
     message: "Введите цену",
   }),
-  stock: z.number().min(0, {
+  quantity: z.number().min(0, {
     message: "Количество не может быть отрицательным",
   }),
   description: z.string().optional(),
@@ -84,6 +87,7 @@ const formSchema = z.object({
 
 export function CreateProductForm() {
   const router = useRouter()
+  const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Инициализация формы
@@ -93,7 +97,7 @@ export function CreateProductForm() {
       name: "",
       category: "",
       price: "",
-      stock: 0,
+      quantity: 0,
       description: "",
     },
   })
@@ -102,20 +106,36 @@ export function CreateProductForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true)
     try {
-      // Имитация задержки создания товара
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      console.log("Creating product with values:", values)
 
-      // Генерация артикула
-      const prefix = values.name.substring(0, 2).toUpperCase()
-      const randomNum = Math.floor(1000 + Math.random() * 9000)
-      const articleNumber = `${prefix}-${randomNum}`
+      // Подготовка данных для API
+      const productData: ProductRequest = {
+        name: values.name,
+        category: values.category as any, // Приведение к типу ProductCategory
+        price: Number.parseFloat(values.price),
+        description: values.description || "",
+        quantity: values.quantity,
+      }
 
-      console.log({ ...values, articleNumber })
-      alert(`Товар "${values.name}" успешно создан с артикулом ${articleNumber}`)
+      console.log("Product data for API:", productData)
 
+      // Отправка запроса на создание товара
+      await productsService.addProduct(productData)
+
+      toast({
+        title: "Товар создан",
+        description: `Товар "${values.name}" успешно создан`,
+      })
+
+      // Перенаправление на страницу управления товарами
       router.push("/products/manage")
     } catch (error) {
-      console.error("Ошибка при создании товара:", error)
+      console.error("Error creating product:", error)
+      toast({
+        title: "Ошибка создания",
+        description: "Не удалось создать товар. Попробуйте снова.",
+        variant: "destructive",
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -154,13 +174,14 @@ export function CreateProductForm() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Окрашивание волос">Окрашивание волос</SelectItem>
-                        <SelectItem value="Уход за волосами">Уход за волосами</SelectItem>
-                        <SelectItem value="Стайлинг для волос">Стайлинг для волос</SelectItem>
-                        <SelectItem value="Расходники">Расходники</SelectItem>
-                        <SelectItem value="Химическая завивка">Химическая завивка</SelectItem>
-                        <SelectItem value="Брови">Брови</SelectItem>
-                        <SelectItem value="Маникюр и педикюр">Маникюр и педикюр</SelectItem>
+                        <SelectItem value="hair_coloring">Окрашивание волос</SelectItem>
+                        <SelectItem value="hair_care">Уход за волосами</SelectItem>
+                        <SelectItem value="hair_styling">Стайлинг для волос</SelectItem>
+                        <SelectItem value="consumables">Расходники</SelectItem>
+                        <SelectItem value="perming">Химическая завивка</SelectItem>
+                        <SelectItem value="eyebrows">Брови</SelectItem>
+                        <SelectItem value="manicure_and_pedicure">Маникюр и педикюр</SelectItem>
+                        <SelectItem value="tools_and_equipment">Инструменты и оборудование</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -185,7 +206,7 @@ export function CreateProductForm() {
 
               <FormField
                 control={form.control}
-                name="stock"
+                name="quantity"
                 render={({ field: { onChange, ...fieldProps } }) => (
                   <FormItem>
                     <FormLabel>Количество в наличии</FormLabel>
