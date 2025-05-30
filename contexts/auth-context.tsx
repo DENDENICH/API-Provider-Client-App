@@ -40,21 +40,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Проверка токена при загрузке приложения
   useEffect(() => {
-    const token = localStorage.getItem("access_token")
-    const storedUser = localStorage.getItem("user")
-
-    if (token && storedUser) {
+    const initializeAuth = () => {
       try {
-        const userData = JSON.parse(storedUser)
-        setUser(userData)
-        apiClient.setToken(token)
+        const token = localStorage.getItem("access_token")
+        const storedUser = localStorage.getItem("user")
+
+        console.log("Initializing auth...")
+        console.log("Token from localStorage:", token ? "exists" : "not found")
+        console.log("User from localStorage:", storedUser ? "exists" : "not found")
+
+        if (token && storedUser) {
+          // Сначала устанавливаем токен в API клиент
+          apiClient.setToken(token)
+          console.log("Token set in API client")
+
+          // Затем восстанавливаем пользователя
+          const userData = JSON.parse(storedUser)
+          setUser(userData)
+          console.log("User restored:", userData)
+        } else {
+          console.log("No token or user found, clearing auth state")
+          // Если нет токена или пользователя, очищаем все
+          apiClient.clearToken()
+          localStorage.removeItem("access_token")
+          localStorage.removeItem("user")
+          localStorage.removeItem("registered_email")
+          localStorage.removeItem("registered_name")
+        }
       } catch (error) {
         console.error("Ошибка при восстановлении пользователя:", error)
+        // При ошибке очищаем все данные
+        apiClient.clearToken()
         localStorage.removeItem("access_token")
         localStorage.removeItem("user")
+        localStorage.removeItem("registered_email")
+        localStorage.removeItem("registered_name")
+        setUser(null)
+      } finally {
+        setIsLoading(false)
       }
     }
-    setIsLoading(false)
+
+    initializeAuth()
   }, [])
 
   const login = async (email: string, password: string) => {
@@ -74,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: email.split("@")[0],
         email,
         organizerRole: response.role_organizer,
-        userRole: response.user_role as UserRole, // Явное приведение типа
+        userRole: response.user_role as UserRole, // Исправлено: используем user_role вместо user_type
       }
 
       console.log("Created user object:", newUser) // Для отладки

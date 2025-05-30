@@ -27,7 +27,11 @@ const formSchema = z.object({
     }),
 })
 
-export function AddSupplierForm() {
+interface AddSupplierFormProps {
+  onSupplierAdded?: () => void
+}
+
+export function AddSupplierForm({ onSupplierAdded }: AddSupplierFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [supplierFound, setSupplierFound] = useState<SupplierResponse | null>(null)
   const [isAdding, setIsAdding] = useState(false)
@@ -78,8 +82,11 @@ export function AddSupplierForm() {
       })
       setSupplierFound(null)
       form.reset()
-      // Обновляем страницу для отображения нового поставщика
-      window.location.reload()
+
+      // Вызываем callback для обновления списка поставщиков
+      if (onSupplierAdded) {
+        onSupplierAdded()
+      }
     } catch (error) {
       console.error("Error adding supplier:", error)
       toast({

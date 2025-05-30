@@ -13,14 +13,31 @@ export class ApiClientError extends Error {
 class ApiClient {
   private token: string | null = null
 
+  constructor() {
+    // При создании экземпляра пытаемся восстановить токен из localStorage
+    if (typeof window !== "undefined") {
+      const storedToken = localStorage.getItem("access_token")
+      if (storedToken) {
+        this.token = storedToken
+        console.log("Token restored in ApiClient constructor")
+      }
+    }
+  }
+
   setToken(token: string) {
     this.token = token
-    localStorage.setItem("access_token", token)
+    if (typeof window !== "undefined") {
+      localStorage.setItem("access_token", token)
+    }
+    console.log("Token set in ApiClient:", token ? "exists" : "null")
   }
 
   clearToken() {
     this.token = null
-    localStorage.removeItem("access_token")
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("access_token")
+    }
+    console.log("Token cleared in ApiClient")
   }
 
   private getHeaders(): Record<string, string> {
@@ -30,6 +47,9 @@ class ApiClient {
 
     if (this.token) {
       headers.Authorization = `Bearer ${this.token}`
+      console.log("Authorization header added to request")
+    } else {
+      console.warn("No token available for request")
     }
 
     return headers
@@ -76,6 +96,7 @@ class ApiClient {
         errorCode = "UNAUTHORIZED"
         this.clearToken()
         if (typeof window !== "undefined") {
+          console.log("401 error, redirecting to login")
           window.location.href = "/login"
         }
         break
@@ -119,6 +140,7 @@ class ApiClient {
   }
 
   async get<T>(url: string): Promise<T> {
+    console.log("Making GET request to:", url)
     const response = await fetch(url, {
       method: "GET",
       headers: this.getHeaders(),
@@ -127,6 +149,7 @@ class ApiClient {
   }
 
   async post<T>(url: string, data?: any): Promise<T> {
+    console.log("Making POST request to:", url)
     const response = await fetch(url, {
       method: "POST",
       headers: this.getHeaders(),
@@ -136,6 +159,7 @@ class ApiClient {
   }
 
   async put<T>(url: string, data: any): Promise<T> {
+    console.log("Making PUT request to:", url)
     const response = await fetch(url, {
       method: "PUT",
       headers: this.getHeaders(),
@@ -145,6 +169,7 @@ class ApiClient {
   }
 
   async patch<T>(url: string, data: any): Promise<T> {
+    console.log("Making PATCH request to:", url)
     const response = await fetch(url, {
       method: "PATCH",
       headers: this.getHeaders(),
@@ -154,6 +179,7 @@ class ApiClient {
   }
 
   async delete<T>(url: string): Promise<T> {
+    console.log("Making DELETE request to:", url)
     const response = await fetch(url, {
       method: "DELETE",
       headers: this.getHeaders(),
