@@ -22,7 +22,7 @@ import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Icons } from "@/components/icons"
-import { productsService } from "@/lib/api-services"
+import { expensesService } from "@/lib/api-services"
 import type { ProductResponse } from "@/lib/api-types"
 import { useToast } from "@/hooks/use-toast"
 
@@ -54,14 +54,27 @@ export function ManageProductsTable() {
       setIsLoading(true)
       console.log("Fetching products for management...")
 
-      const response = await productsService.getProducts(undefined, true) // addQuantity = true
+      // Для поставщиков используем API expenses вместо products
+      const response = await expensesService.getExpenses()
       console.log("Manage products API response:", response)
 
-      setProducts(response.products)
+      // Преобразуем expenses в формат ProductResponse
+      const transformedProducts: ProductResponse[] = response.expenses.map((expense) => ({
+        id: expense.product_id,
+        article: expense.article,
+        name: expense.product_name,
+        category: expense.category,
+        description: expense.description,
+        price: 0, // Цена не приходит в expenses, можно установить 0 или скрыть колонку
+        quantity: expense.quantity,
+        organizer_name: expense.supplier_name,
+      }))
+
+      setProducts(transformedProducts)
 
       toast({
         title: "Товары загружены",
-        description: `Загружено ${response.products.length} товаров`,
+        description: `Загружено ${transformedProducts.length} товаров`,
       })
     } catch (error) {
       console.error("Error fetching products:", error)
@@ -82,7 +95,6 @@ export function ManageProductsTable() {
     setIsStockDialogOpen(true)
   }
 
-  // Функция для обновления количества товара
   const handleUpdateStock = async () => {
     if (!selectedProduct) return
 
@@ -90,8 +102,9 @@ export function ManageProductsTable() {
     try {
       console.log(`Updating stock for product ${selectedProduct.id} to ${newStockValue}`)
 
-      // В реальном приложении здесь будет API-запрос для обновления количества
-      // Пока что обновляем локально
+      // Используем API expenses для обновления количества
+      await expensesService.updateExpenseQuantity(selectedProduct.id, newStockValue)
+
       setProducts((prev) =>
         prev.map((product) => (product.id === selectedProduct.id ? { ...product, quantity: newStockValue } : product)),
       )
@@ -115,7 +128,6 @@ export function ManageProductsTable() {
     }
   }
 
-  // Функция для удаления товара
   const handleDeleteProduct = async (product: ProductResponse) => {
     if (!confirm(`Вы уверены, что хотите удалить товар "${product.name}"?`)) {
       return
@@ -124,8 +136,9 @@ export function ManageProductsTable() {
     try {
       console.log(`Deleting product ${product.id}`)
 
-      // В реальном приложении здесь будет API-запрос для удаления товара
-      // Пока что удаляем локально
+      // Используем API expenses для удаления
+      await expensesService.deleteExpense(product.id)
+
       setProducts((prev) => prev.filter((p) => p.id !== product.id))
 
       toast({

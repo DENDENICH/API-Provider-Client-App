@@ -31,8 +31,11 @@ import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Icons } from "@/components/icons"
+import { expensesService } from "@/lib/api-services"
+import { useToast } from "@/hooks/use-toast"
+import { Trash } from "lucide-react"
 
-// Типы данных для товара на ��кладе
+// Типы данных для товара на складе
 type ExpenseItem = {
   id: string
   articleNumber: string
@@ -43,101 +46,67 @@ type ExpenseItem = {
   description?: string
 }
 
-// Примерные данные для демонстрации
-const data: ExpenseItem[] = [
-  {
-    id: "1",
-    articleNumber: "SH-1001",
-    name: "Шампунь для окрашенных волос",
-    organization: "L'Oréal Professional",
-    category: "Уход за волосами",
-    quantity: 45,
-    description: "Профессиональный шампунь для окрашенных волос. Сохраняет цвет и придает блеск.",
-  },
-  {
-    id: "2",
-    articleNumber: "MH-2002",
-    name: "Маска для волос",
-    organization: "Kérastase",
-    category: "Уход за волосами",
-    quantity: 30,
-    description: "Интенсивная восстанавливающая маска для поврежденных волос.",
-  },
-  {
-    id: "3",
-    articleNumber: "CF-3003",
-    name: "Крем для лица",
-    organization: "Clarins",
-    category: "Уход за кожей",
-    quantity: 20,
-    description: "Увлажняющий крем для лица с антивозрастным эффектом.",
-  },
-  {
-    id: "4",
-    articleNumber: "SA-4004",
-    name: "Сыворотка антивозрастная",
-    organization: "Janssen Cosmetics",
-    category: "Уход за кожей",
-    quantity: 15,
-    description: "Антивозрастная сыворотка с гиалуроновой кислотой и пептидами.",
-  },
-  {
-    id: "5",
-    articleNumber: "CF-5005",
-    name: "Крем для ног",
-    organization: "Gehwol",
-    category: "Маникюр и педикюр",
-    quantity: 50,
-    description: "Увлажняющий и смягчающий крем для ног с маслом авокадо.",
-  },
-  {
-    id: "6",
-    articleNumber: "NO-6006",
-    name: "Масло для ногтей",
-    organization: "Gehwol",
-    category: "Маникюр и педикюр",
-    quantity: 40,
-    description: "Укрепляющее масло для ногтей с витаминами A, E и F.",
-  },
-  {
-    id: "7",
-    articleNumber: "PF-7007",
-    name: "Пилинг для лица",
-    organization: "Janssen Cosmetics",
-    category: "Уход за кожей",
-    quantity: 25,
-    description: "Энзимный пилинг для глубокого очищения кожи лица.",
-  },
-  {
-    id: "8",
-    articleNumber: "AM-8008",
-    name: "Альгинатная маска",
-    organization: "Janssen Cosmetics",
-    category: "Уход за кожей",
-    quantity: 35,
-    description: "Альгинатная маска для лица с эффектом лифтинга.",
-  },
-  {
-    id: "9",
-    articleNumber: "TH-9009",
-    name: "Термозащита для волос",
-    organization: "L'Oréal Professional",
-    category: "Стайлинг для волос",
-    quantity: 28,
-    description: "Спрей для термозащиты волос при укладке феном или утюжком.",
-  },
-  {
-    id: "10",
-    articleNumber: "OH-1010",
-    name: "Масло для волос",
-    organization: "Kérastase",
-    category: "Уход за волосами",
-    quantity: 22,
-    description: "Питательное масло для сухих и поврежденных волос.",
-  },
-]
+// Удалите примерные данные const data: ExpenseItem[] = [...]
 
-export function ExpenseTable() {
+// Добавьте состояния для данных
+const ExpenseTableComponent = () => {
+  const [expenses, setExpenses] = React.useState<ExpenseItem[]>([])
+  const [isLoading, setIsLoading] = React.useState(true)
+  const { toast } = useToast()
+
+  // Добавьте useEffect для загрузки данных
+  React.useEffect(() => {
+    fetchExpenses()
+  }, [])
+
+  // Добавьте функцию загрузки данных
+  const fetchExpenses = async () => {
+    try {
+      setIsLoading(true)
+      console.log("Fetching expenses...")
+
+      const response = await expensesService.getExpenses()
+      console.log("Expenses API response:", response)
+
+      // Преобразуем данные из API в формат таблицы
+      const transformedExpenses: ExpenseItem[] = response.expenses.map((expense) => ({
+        id: expense.id.toString(),
+        articleNumber: expense.article.toString(),
+        name: expense.product_name,
+        organization: expense.supplier_name,
+        category: getCategoryDisplayName(expense.category),
+        quantity: expense.quantity,
+        description: expense.description,
+      }))
+
+      setExpenses(transformedExpenses)
+    } catch (error) {
+      console.error("Error fetching expenses:", error)
+      toast({
+        title: "Ошибка загрузки",
+        description: "Не удалось загрузить данные склада",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Добавьте функцию для преобразования категорий
+  const getCategoryDisplayName = (category: string): string => {
+    const categoryMap: Record<string, string> = {
+      hair_coloring: "Окрашивание волос",
+      hair_care: "Уход за волосами",
+      hair_styling: "Стайлинг для волос",
+      consumables: "Расходники",
+      perming: "Химическая завивка",
+      eyebrows_and_eyelashes: "Брови и ресницы",
+      manicure_and_pedicure: "Маникюр и педикюр",
+      tools_and_equipment: "Инструменты и оборудование",
+    }
+    return categoryMap[category] || category
+  }
+
   const router = useRouter()
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -165,31 +134,59 @@ export function ExpenseTable() {
 
     setIsUpdating(true)
     try {
-      // В реальном приложении здесь будет API-запрос
-      // Пример: await fetch(`/api/expense/${selectedItem.id}/stock`, {
-      //   method: 'PATCH',
-      //   body: JSON.stringify({ quantity: newStockValue })
-      // })
+      console.log(`Updating stock for expense ${selectedItem.id} to ${newStockValue}`)
 
-      // Имитация задержки запроса
-      await new Promise((resolve) => setTimeout(resolve, 800))
+      await expensesService.updateExpenseQuantity(Number(selectedItem.id), newStockValue)
 
-      // Обновляем список товаров
-      const updatedData = data.map((item) =>
-          item.id === selectedItem.id ? { ...item, quantity: newStockValue } : item,
+      // Обновляем локальные данные
+      setExpenses((prev) =>
+        prev.map((item) => (item.id === selectedItem.id ? { ...item, quantity: newStockValue } : item)),
       )
 
-      // В реальном приложении здесь будет обновление состояния через API
-      // Для демонстрации просто показываем сообщение
-      alert(`Количество товара "${selectedItem.name}" обновлено до ${newStockValue} шт.`)
+      toast({
+        title: "Количество обновлено",
+        description: `Количество товара "${selectedItem.name}" изменено на ${newStockValue} шт.`,
+      })
 
-      // Закрываем модальное окно
       setIsStockDialogOpen(false)
       setSelectedItem(null)
     } catch (error) {
-      console.error("Ошибка при обновлении количества товара:", error)
+      console.error("Error updating stock:", error)
+      toast({
+        title: "Ошибка обновления",
+        description: "Не удалось обновить количество товара",
+        variant: "destructive",
+      })
     } finally {
       setIsUpdating(false)
+    }
+  }
+
+  // Добавьте функцию удаления
+  const handleDeleteExpense = async (item: ExpenseItem) => {
+    if (!confirm(`Вы уверены, что хотите удалить товар "${item.name}" со склада?`)) {
+      return
+    }
+
+    try {
+      console.log(`Deleting expense ${item.id}`)
+
+      await expensesService.deleteExpense(Number(item.id))
+
+      // Удаляем из локальных данных
+      setExpenses((prev) => prev.filter((expense) => expense.id !== item.id))
+
+      toast({
+        title: "Товар удален",
+        description: `Товар "${item.name}" успешно удален со склада`,
+      })
+    } catch (error) {
+      console.error("Error deleting expense:", error)
+      toast({
+        title: "Ошибка удаления",
+        description: "Не удалось удалить товар со склада",
+        variant: "destructive",
+      })
     }
   }
 
@@ -204,10 +201,10 @@ export function ExpenseTable() {
       accessorKey: "name",
       header: ({ column }) => {
         return (
-            <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-              Название
-              <ArrowUpDown className="ml-2 h-4 w-4" />
-            </Button>
+          <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+            Название
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
         )
       },
       cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
@@ -216,10 +213,10 @@ export function ExpenseTable() {
       accessorKey: "organization",
       header: ({ column }) => {
         return (
-            <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-              Организация
-              <ArrowUpDown className="ml-2 h-4 w-4" />
-            </Button>
+          <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+            Организация
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
         )
       },
       cell: ({ row }) => <div>{row.getValue("organization")}</div>,
@@ -233,23 +230,23 @@ export function ExpenseTable() {
       accessorKey: "quantity",
       header: ({ column }) => {
         return (
-            <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-              Количество
-              <ArrowUpDown className="ml-2 h-4 w-4" />
-            </Button>
+          <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+            Количество
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
         )
       },
       cell: ({ row }) => {
         const quantity = Number.parseInt(row.getValue("quantity"))
         const item = row.original
         return (
-            <Button
-                variant="link"
-                className={`p-0 h-auto ${quantity === 0 ? "text-red-500" : quantity < 10 ? "text-yellow-500" : ""}`}
-                onClick={() => handleOpenStockDialog(item)}
-            >
-              {quantity} шт.
-            </Button>
+          <Button
+            variant="link"
+            className={`p-0 h-auto ${quantity === 0 ? "text-red-500" : quantity < 10 ? "text-yellow-500" : ""}`}
+            onClick={() => handleOpenStockDialog(item)}
+          >
+            {quantity} шт.
+          </Button>
         )
       },
     },
@@ -260,21 +257,25 @@ export function ExpenseTable() {
         const item = row.original
 
         return (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
-                  <span className="sr-only">Открыть меню</span>
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Действия</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => router.push(`/expense/${item.id}`)}>
-                  <Eye className="mr-2 h-4 w-4" />
-                  Просмотр
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Открыть меню</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Действия</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => router.push(`/expense/${item.id}`)}>
+                <Eye className="mr-2 h-4 w-4" />
+                Просмотр
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDeleteExpense(item)} className="text-destructive">
+                <Trash className="mr-2 h-4 w-4" />
+                Удалить
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )
       },
     },
@@ -282,7 +283,7 @@ export function ExpenseTable() {
 
   // Инициализация таблицы с помощью TanStack Table
   const table = useReactTable({
-    data,
+    data: expenses, // Изменено с data на expenses
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -301,137 +302,156 @@ export function ExpenseTable() {
   })
 
   // Рендер таблицы с товарами
-  return (
+  if (isLoading) {
+    return (
       <div className="w-full">
-        {/* Поле поиска по названию товара */}
         <div className="flex items-center py-4">
-          <Input
-              placeholder="Поиск по названию..."
-              value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-              onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
-              className="max-w-sm"
-          />
+          <Input placeholder="Поиск по названию..." disabled className="max-w-sm" />
         </div>
-
-        {/* Таблица с товарами */}
         <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id}>
-                          {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                        </TableHead>
-                    ))}
-                  </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                      <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
-                        {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                        ))}
-                      </TableRow>
-                  ))
-              ) : (
-                  <TableRow>
-                    <TableCell colSpan={columns.length} className="h-24 text-center">
-                      Нет результатов.
-                    </TableCell>
-                  </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Пагинация */}
-        <div className="flex items-center justify-end space-x-2 py-4">
-          <div className="flex-1 text-sm text-muted-foreground">{table.getFilteredRowModel().rows.length} товаров</div>
-          <div className="space-x-2">
-            <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-            >
-              Назад
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
-              Вперед
-            </Button>
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           </div>
         </div>
-        {/* Модальное окно для редактирования количества товара */}
-        <Dialog open={isStockDialogOpen} onOpenChange={setIsStockDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Изменить количество товара</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              {selectedItem && (
-                  <>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="item-name" className="text-right">
-                        Товар
-                      </Label>
-                      <div id="item-name" className="col-span-3 font-medium">
-                        {selectedItem.name}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="item-article" className="text-right">
-                        Артикул
-                      </Label>
-                      <div id="item-article" className="col-span-3">
-                        {selectedItem.articleNumber}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="item-organization" className="text-right">
-                        Организация
-                      </Label>
-                      <div id="item-organization" className="col-span-3">
-                        {selectedItem.organization}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="stock-value" className="text-right">
-                        Количество
-                      </Label>
-                      <div className="col-span-3">
-                        <Input
-                            id="stock-value"
-                            type="number"
-                            min="0"
-                            value={newStockValue}
-                            onChange={(e) => setNewStockValue(Number(e.target.value))}
-                            className="w-20"
-                        />
-                      </div>
-                    </div>
-                  </>
-              )}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsStockDialogOpen(false)}>
-                Отмена
-              </Button>
-              <Button onClick={handleUpdateStock} disabled={isUpdating}>
-                {isUpdating ? (
-                    <>
-                      <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-                      Сохранение...
-                    </>
-                ) : (
-                    "Сохранить"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
+    )
+  }
+
+  return (
+    <div className="w-full">
+      {/* Поле поиска по названию товара */}
+      <div className="flex items-center py-4">
+        <Input
+          placeholder="Поиск по названию..."
+          value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+          onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
+          className="max-w-sm"
+        />
+      </div>
+
+      {/* Таблица с товарами */}
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  Нет результатов.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Пагинация */}
+      <div className="flex items-center justify-end space-x-2 py-4">
+        <div className="flex-1 text-sm text-muted-foreground">{table.getFilteredRowModel().rows.length} товаров</div>
+        <div className="space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            Назад
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+            Вперед
+          </Button>
+        </div>
+      </div>
+      {/* Модальное окно для редактирования количества товара */}
+      <Dialog open={isStockDialogOpen} onOpenChange={setIsStockDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Изменить количество товара</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {selectedItem && (
+              <>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="item-name" className="text-right">
+                    Товар
+                  </Label>
+                  <div id="item-name" className="col-span-3 font-medium">
+                    {selectedItem.name}
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="item-article" className="text-right">
+                    Артикул
+                  </Label>
+                  <div id="item-article" className="col-span-3">
+                    {selectedItem.articleNumber}
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="item-organization" className="text-right">
+                    Организация
+                  </Label>
+                  <div id="item-organization" className="col-span-3">
+                    {selectedItem.organization}
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="stock-value" className="text-right">
+                    Количество
+                  </Label>
+                  <div className="col-span-3">
+                    <Input
+                      id="stock-value"
+                      type="number"
+                      min="0"
+                      value={newStockValue}
+                      onChange={(e) => setNewStockValue(Number(e.target.value))}
+                      className="w-20"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsStockDialogOpen(false)}>
+              Отмена
+            </Button>
+            <Button onClick={handleUpdateStock} disabled={isUpdating}>
+              {isUpdating ? (
+                <>
+                  <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+                  Сохранение...
+                </>
+              ) : (
+                "Сохранить"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   )
+}
+
+export function ExpenseTable() {
+  return <ExpenseTableComponent />
 }
